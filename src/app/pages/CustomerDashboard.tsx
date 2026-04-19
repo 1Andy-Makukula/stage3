@@ -29,6 +29,9 @@ export function CustomerDashboard() {
   const sentCompletedGifts = mockTransactions.filter(t => t.status === 'completed');
   // For UI testing, pretend completed ones are received gifts
   const receivedGifts = mockTransactions.filter(t => t.status === 'completed');
+  const reciprocitySent = 5;
+  const reciprocityReceived = 2;
+  const reciprocityPositive = reciprocitySent >= reciprocityReceived;
 
   const getStatusColor = (status: Transaction['status']) => {
     switch (status) {
@@ -213,6 +216,20 @@ export function CustomerDashboard() {
                   </p>
                 </div>
               </div>
+            </Card>
+
+            <Card className="p-6 border-none shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="w-5 h-5 text-[#F97316]" strokeWidth={1.5} />
+                <h3 className="font-light text-black">KithLy Reciprocity Index</h3>
+              </div>
+              <div className="rounded-xl border border-border bg-gray-50 p-4 text-center">
+                <p className="text-3xl font-semibold text-slate-900">{reciprocitySent} : {reciprocityReceived}</p>
+                <p className="text-xs text-muted-foreground mt-1">Gifts Sent / Gifts Received</p>
+              </div>
+              <p className="mt-3 text-sm font-light text-center text-muted-foreground">
+                {reciprocityPositive ? 'You are a generous hero!' : 'Keep sharing joy to raise your index.'}
+              </p>
             </Card>
           </div>
 

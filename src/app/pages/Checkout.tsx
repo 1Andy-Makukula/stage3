@@ -14,6 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { toast } from 'sonner';
 import { newIdempotencyKey, postJson } from '../lib/api';
 import type { CheckoutOrderPayload, GiftFulfillmentDetails } from '../types';
+import confetti from 'canvas-confetti';
+import { pushNotification } from '../lib/notifications';
 
 export function Checkout() {
   const navigate = useNavigate();
@@ -38,6 +40,34 @@ export function Checkout() {
       code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return code;
+  };
+
+  const launchCelebrationConfetti = () => {
+    const colors = ['#F97316', '#FB923C', '#22C55E', '#0f172a'];
+    confetti({
+      particleCount: 180,
+      spread: 110,
+      startVelocity: 52,
+      origin: { y: 0.6 },
+      colors,
+      scalar: 1.1,
+    });
+    setTimeout(() => {
+      confetti({
+        particleCount: 120,
+        spread: 140,
+        startVelocity: 42,
+        origin: { x: 0.15, y: 0.45 },
+        colors,
+      });
+      confetti({
+        particleCount: 120,
+        spread: 140,
+        startVelocity: 42,
+        origin: { x: 0.85, y: 0.45 },
+        colors,
+      });
+    }, 180);
   };
 
   const handlePayment = async () => {
@@ -68,6 +98,9 @@ export function Checkout() {
           currency: 'ZMW',
           reference: `checkout-${Date.now()}`,
           customerEmail: user?.email,
+          buyerName: user?.full_name,
+          merchantPhone: items[0]?.product.shop?.contact_phone,
+          claimCode: paymentKey.slice(0, 8).toUpperCase(),
           fulfillment,
           lines: checkoutLines,
         },
@@ -107,6 +140,21 @@ export function Checkout() {
       /* quota / private mode */
     }
 
+    launchCelebrationConfetti();
+    const firstItemTitle = items[0]?.product.title ?? 'gift';
+    const firstShopName = items[0]?.product.shop?.business_name ?? 'merchant';
+    pushNotification({
+      type: 'info',
+      title: 'New Escrow Locked',
+      message: `New Escrow Locked: ${firstItemTitle}. Buyer payment confirmed.`,
+      audience: 'merchant',
+    });
+    pushNotification({
+      type: 'success',
+      title: 'Gift Purchase Confirmed',
+      message: `You locked ${firstItemTitle} with ${firstShopName}. Claim codes are now active.`,
+      audience: 'buyer',
+    });
     setHandshakeCodes(codes);
     setStep('success');
     clearCart();

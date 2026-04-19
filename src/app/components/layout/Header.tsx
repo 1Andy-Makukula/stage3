@@ -1,11 +1,21 @@
 // KithLy Header - Global Navigation
 
-import { ShoppingCart, User, Menu, Gift, Bell, QrCode, Globe } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ShoppingCart, User, Menu, Gift, Bell, QrCode, Globe, LayoutDashboard, Store } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useNavigate } from 'react-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useCart } from '../../hooks/useCart';
 import { Badge } from '../ui/badge';
 import { SearchBar } from '../shared/SearchBar';
+import { getUnreadCount, subscribeNotifications } from '../../lib/notifications';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -20,9 +30,18 @@ export function Header({
   onProfileClick,
   onLogoClick,
 }: HeaderProps) {
+  const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
   const { getTotalItems } = useCart();
   const cartItemCount = getTotalItems();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const audience = user?.role === 'merchant' ? 'merchant' : 'buyer';
+    const refresh = () => setUnreadCount(getUnreadCount(audience));
+    refresh();
+    return subscribeNotifications(refresh);
+  }, [user?.role]);
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-border">
@@ -84,19 +103,29 @@ export function Header({
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => { /* Navigate to notifications */ }}
+                onClick={() => navigate('/notifications')}
                 className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors text-muted-foreground"
                 aria-label="Notifications"
               >
                 <Bell className="w-5 h-5" strokeWidth={1.5} />
-                <Badge className="absolute top-1 right-2 w-2 h-2 p-0 bg-red-500 rounded-full" />
+                {unreadCount > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 bg-red-500 text-white text-[10px] rounded-full">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Badge>
+                )}
               </motion.button>
             )}
             {/* Cart */}
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={onCartClick}
+              onClick={() => {
+                if (onCartClick) {
+                  onCartClick();
+                  return;
+                }
+                navigate('/checkout');
+              }}
               className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
               aria-label="Shopping cart"
             >
@@ -110,21 +139,42 @@ export function Header({
 
             {/* Profile */}
             {isAuthenticated ? (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={onProfileClick}
-                className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F97316] to-[#FB923C] flex items-center justify-center">
-                  <span className="text-white text-sm font-light">
-                    {user?.full_name?.charAt(0) || 'U'}
-                  </span>
-                </div>
-                <span className="hidden md:inline text-sm font-light">
-                  {user?.full_name?.split(' ')[0]}
-                </span>
-              </motion.button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F97316] to-[#FB923C] flex items-center justify-center">
+                      <span className="text-white text-sm font-light">
+                        {user?.full_name?.charAt(0) || 'U'}
+                      </span>
+                    </div>
+                    <span className="hidden md:inline text-sm font-light">
+                      {user?.full_name?.split(' ')[0]}
+                    </span>
+                  </motion.button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => navigate('/dashboard')}>
+                    <LayoutDashboard className="w-4 h-4" /> My Dashboard
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/notifications')}>
+                    <Bell className="w-4 h-4" /> Notifications
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Persona Switch
+                  </div>
+                  <DropdownMenuItem onClick={() => navigate('/merchant/dashboard')}>
+                    <Store className="w-4 h-4" /> Switch to Merchant Dashboard
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/')}>
+                    <User className="w-4 h-4" /> Switch to Customer View
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <motion.button
                 whileHover={{ scale: 1.05 }}

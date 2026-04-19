@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router';
 import type { HeroSlide } from '../../types';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
@@ -12,6 +13,7 @@ interface HeroSliderProps {
 }
 
 export function HeroSlider({ slides, autoPlayInterval = 5000 }: HeroSliderProps) {
+  const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
@@ -80,9 +82,22 @@ export function HeroSlider({ slides, autoPlayInterval = 5000 }: HeroSliderProps)
                 transition={{ delay: 0.4 }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                onClick={() => navigate(currentSlide.cta_link || '/')}
                 className="mt-6 px-8 py-3 bg-gradient-to-r from-[#F97316] to-[#FB923C] text-white rounded-full font-light shadow-lg hover:shadow-xl transition-shadow"
               >
-                {currentSlide.cta_text}
+                Send a Gift Now
+              </motion.button>
+
+              <motion.button
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.48 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/shops')}
+                className="mt-3 ml-3 px-8 py-3 border border-white/80 text-white rounded-full font-light bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors"
+              >
+                Pick up for myself
               </motion.button>
             </div>
           </div>

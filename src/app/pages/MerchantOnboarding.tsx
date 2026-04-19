@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Store, Upload, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router';
-import { districts } from '../data/mock-data';
 import { toast } from 'sonner';
+import { zambiaGeo, type ZambiaProvince } from '../data/zambia-geo';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 export function MerchantOnboarding() {
   const navigate = useNavigate();
@@ -22,6 +23,10 @@ export function MerchantOnboarding() {
 
   const handleSubmitForm = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!province || !district) {
+      toast.error('Please select both province and district.');
+      return;
+    }
     setStep('documents');
   };
 
@@ -31,7 +36,8 @@ export function MerchantOnboarding() {
   };
 
   const categories = ['Food & Beverages', 'Electronics', 'Fashion & Clothing', 'Health & Beauty', 'Home & Garden', 'Sports & Recreation', 'Other'];
-  const provinces = [...new Set(districts.map(d => d.province))];
+  const provinces = Object.keys(zambiaGeo) as ZambiaProvince[];
+  const availableDistricts = province ? zambiaGeo[province as ZambiaProvince] : [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -96,32 +102,40 @@ export function MerchantOnboarding() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="text-sm font-light text-muted-foreground mb-2 block">Province *</label>
-                      <select
+                      <Select
                         value={province}
-                        onChange={(e) => setProvince(e.target.value)}
-                        className="w-full px-4 py-3 border border-border rounded-full font-light focus:outline-none focus:border-[#F97316]"
-                        required
+                        onValueChange={(value) => {
+                          setProvince(value);
+                          setDistrict('');
+                        }}
                       >
-                        <option value="">Select</option>
-                        {provinces.map(prov => (
-                          <option key={prov} value={prov}>{prov}</option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="w-full px-4 py-3 border border-border rounded-full font-light focus:outline-none focus:border-[#F97316]">
+                          <SelectValue placeholder="Select province" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {provinces.map((prov) => (
+                            <SelectItem key={prov} value={prov}>
+                              {prov}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div>
                       <label className="text-sm font-light text-muted-foreground mb-2 block">District *</label>
-                      <select
-                        value={district}
-                        onChange={(e) => setDistrict(e.target.value)}
-                        className="w-full px-4 py-3 border border-border rounded-full font-light focus:outline-none focus:border-[#F97316]"
-                        required
-                      >
-                        <option value="">Select</option>
-                        {districts.filter(d => d.province === province).map(dist => (
-                          <option key={dist.id} value={dist.id}>{dist.name}</option>
-                        ))}
-                      </select>
+                      <Select value={district} onValueChange={setDistrict} disabled={!province}>
+                        <SelectTrigger className="w-full px-4 py-3 border border-border rounded-full font-light focus:outline-none focus:border-[#F97316]">
+                          <SelectValue placeholder={province ? 'Select district' : 'Select province first'} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableDistricts.map((districtName) => (
+                            <SelectItem key={districtName} value={districtName}>
+                              {districtName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div>

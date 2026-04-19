@@ -6,7 +6,7 @@ import { mockTransactions } from '../data/mock-data';
 import { formatZMW } from '../utils/formatters';
 import { toast, Toaster } from 'sonner';
 import confetti from 'canvas-confetti';
-import QRCode from 'qrcode';
+import { GiftUnwrapper } from '../components/shared/GiftUnwrapper';
 
 const THANK_YOU_REACTIONS = [
   { emoji: "🥳", text: "Party time!" },
@@ -20,7 +20,6 @@ const THANK_YOU_REACTIONS = [
 export function ClaimPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [reactionSent, setReactionSent] = useState(false);
   const [activeReaction, setActiveReaction] = useState('');
 
@@ -29,22 +28,6 @@ export function ClaimPage() {
   const { product, shop, claim_code, buyer } = transaction;
 
   useEffect(() => {
-    // Generate QR Code
-    if (claim_code) {
-      QRCode.toDataURL(claim_code, {
-        width: 200,
-        margin: 2,
-        color: {
-          dark: '#0f172a',    // slate-900
-          light: '#ffffff'    // white
-        }
-      }).then((url: string) => {
-        setQrCodeDataUrl(url);
-      }).catch((err: Error) => {
-        console.error(err);
-      });
-    }
-
     // Trigger Confetti purely for visual WOW factor for user
     const duration = 3 * 1000;
     const end = Date.now() + duration;
@@ -151,14 +134,6 @@ export function ClaimPage() {
             <p className="text-sm font-medium text-slate-500 mb-4 uppercase tracking-wider">Your Claim Info</p>
             
             <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200">
-              {qrCodeDataUrl ? (
-                <div className="bg-white p-2 w-fit mx-auto rounded-xl shadow-sm mb-6">
-                  <img src={qrCodeDataUrl} alt="QR Code" className="w-32 h-32" />
-                </div>
-              ) : (
-                <div className="w-32 h-32 mx-auto bg-slate-200 rounded-xl mb-6 animate-pulse"></div>
-              )}
-
               <p className="text-xs text-slate-500 mb-2">Show this code at <span className="font-semibold text-slate-800">{shop.business_name}</span></p>
               
               <div 
@@ -169,6 +144,14 @@ export function ClaimPage() {
                 <div className="w-10 h-10 bg-slate-50 rounded-lg flex items-center justify-center group-hover:bg-orange-50 group-hover:text-orange-500 transition-colors">
                   <Copy className="w-4 h-4" />
                 </div>
+              </div>
+
+              <div className="mt-6">
+                <GiftUnwrapper
+                  claimCode={claim_code}
+                  senderName={buyer?.full_name || 'Anonymous Sender'}
+                  giftMessage="You are appreciated. Enjoy this gift from me!"
+                />
               </div>
             </div>
           </div>

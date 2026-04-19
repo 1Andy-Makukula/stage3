@@ -13,6 +13,7 @@ import { AdCampaignModal } from '../components/shared/AdCampaignModal';
 import type { Product, ProductCategory } from '../types';
 import { toast } from 'sonner';
 import { postJson } from '../lib/api';
+import { pushNotification } from '../lib/notifications';
 
 const MERCHANT_SHOP_ID = 'shop-1';
 
@@ -100,6 +101,18 @@ export function MerchantDashboard() {
       if (ok && data?.ok) {
         toast.success('Gift successfully verified and claimed!');
         setRecentRedemptions((prev) => [mockTransactions[0], ...prev]);
+        pushNotification({
+          type: 'success',
+          title: 'Gift Claimed',
+          message: `Your gift was just claimed in Garden!`,
+          audience: 'buyer',
+        });
+        pushNotification({
+          type: 'info',
+          title: 'Escrow Released',
+          message: `Claim completed for ${mockTransactions[0].product?.title ?? 'gift'}.`,
+          audience: 'merchant',
+        });
         return true;
       }
       toast.error(data?.error ?? 'Invalid or expired code.');

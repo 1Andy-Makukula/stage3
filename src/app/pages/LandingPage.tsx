@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { Sparkles, TrendingUp, MapPin, Search } from 'lucide-react';
 import { HeroSlider } from '../components/shared/HeroSlider';
 import { HorizontalProductRibbon } from '../components/shared/HorizontalProductRibbon';
 import { ProductCard } from '../components/shared/ProductCard';
 import { ProductCardSkeleton } from '../components/shared/ProductCardSkeleton';
 import { ErrorBoundary } from '../components/shared/ErrorBoundary';
+import { EmptyState } from '../components/shared/EmptyState';
 import { heroSlides, mockProducts, districts } from '../data/mock-data';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 
 export function LandingPage() {
+  const navigate = useNavigate();
   const [marketLoading, setMarketLoading] = useState(true);
   const [selectedDistrict, setSelectedDistrict] = useState<string>('');
   
@@ -34,6 +37,10 @@ export function LandingPage() {
   const foodProducts = filteredProducts.filter(p => p.category === 'food');
   const giftProducts = filteredProducts.filter(p => p.category === 'gifts');
   const electronicsProducts = filteredProducts.filter(p => p.category === 'electronics');
+  const apologyProducts = filteredProducts.filter((p) => p.category === 'food' || p.category === 'gifts');
+  const monthEndProducts = filteredProducts.filter((p) => p.price_zmw <= 250);
+  const justBecauseProducts = filteredProducts.filter((p) => p.featured || p.category === 'gifts');
+  const selfPickupProducts = filteredProducts.filter((p) => p.category === 'food' || p.category === 'electronics');
 
   const ribbonBusy = !searchQuery && marketLoading;
 
@@ -41,6 +48,47 @@ export function LandingPage() {
     <div className="min-h-screen bg-gray-50">
       {!searchQuery && (
         <section className="container mx-auto px-4 md:px-6 py-6">
+          <Tabs defaultValue="apologies" className="mb-5">
+            <TabsList className="grid grid-cols-2 md:grid-cols-4 w-full bg-white border border-border rounded-xl p-1 h-auto gap-1">
+              <TabsTrigger value="apologies" className="font-light">Emergency Apologies</TabsTrigger>
+              <TabsTrigger value="month-end" className="font-light">Month-End Care Packages</TabsTrigger>
+              <TabsTrigger value="just-because" className="font-light">Just Because</TabsTrigger>
+              <TabsTrigger value="self-pickup" className="font-light">Self-Pickup</TabsTrigger>
+            </TabsList>
+            <TabsContent value="apologies" className="mt-4">
+              <HorizontalProductRibbon
+                title="Emergency Apologies"
+                subtitle="Fast wins when words are not enough"
+                products={apologyProducts}
+                loading={ribbonBusy}
+              />
+            </TabsContent>
+            <TabsContent value="month-end" className="mt-4">
+              <HorizontalProductRibbon
+                title="Month-End Care Packages"
+                subtitle="Affordable bundles to keep loved ones going"
+                products={monthEndProducts}
+                loading={ribbonBusy}
+              />
+            </TabsContent>
+            <TabsContent value="just-because" className="mt-4">
+              <HorizontalProductRibbon
+                title="Just Because"
+                subtitle="Send warmth without waiting for an event"
+                products={justBecauseProducts}
+                loading={ribbonBusy}
+              />
+            </TabsContent>
+            <TabsContent value="self-pickup" className="mt-4">
+              <HorizontalProductRibbon
+                title="Self-Pickup"
+                subtitle="Reserve now, collect when it suits you"
+                products={selfPickupProducts}
+                loading={ribbonBusy}
+              />
+            </TabsContent>
+          </Tabs>
+
           <ErrorBoundary fallbackTitle="Promotions could not load.">
             <HeroSlider slides={heroSlides} />
           </ErrorBoundary>
@@ -79,6 +127,22 @@ export function LandingPage() {
             products={featuredProducts}
             loading={ribbonBusy}
           />
+          <section className="w-full my-8">
+            <div className="relative h-[280px] md:h-[360px] overflow-hidden">
+              <img
+                src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1600&q=80"
+                alt="Friends sharing food together"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/20 flex items-end md:items-center">
+                <div className="container mx-auto px-4 md:px-6 pb-8 md:pb-0">
+                  <h3 className="text-3xl md:text-5xl font-semibold text-white max-w-3xl leading-tight">
+                    Distance should not stop you from buying them lunch.
+                  </h3>
+                </div>
+              </div>
+            </div>
+          </section>
 
           <HorizontalProductRibbon
             title="Popular in Garden"
@@ -100,6 +164,22 @@ export function LandingPage() {
             products={giftProducts}
             loading={ribbonBusy}
           />
+          <section className="w-full my-8">
+            <div className="relative h-[280px] md:h-[360px] overflow-hidden">
+              <img
+                src="https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=1600&q=80"
+                alt="Family sharing a happy meal"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/20 flex items-end md:items-center">
+                <div className="container mx-auto px-4 md:px-6 pb-8 md:pb-0">
+                  <h3 className="text-3xl md:text-5xl font-semibold text-white max-w-3xl leading-tight">
+                    Secure the bag. Share the bread.
+                  </h3>
+                </div>
+              </div>
+            </div>
+          </section>
 
           <HorizontalProductRibbon
             title="Electronics"
@@ -151,11 +231,17 @@ export function LandingPage() {
               </div>
             ))
           ) : (
-             <div className="col-span-full py-20 text-center">
-               <Search className="w-12 h-12 mx-auto text-muted-foreground mb-4" strokeWidth={1.5} />
-               <p className="font-light text-black text-lg">No products found</p>
-               <p className="text-sm text-muted-foreground font-light mb-6">Try searching for something else or clear your filters.</p>
-             </div>
+            <div className="col-span-full">
+              <EmptyState
+                icon={Search}
+                title="No gifts found"
+                description="No gifts available in this district yet. Be the first to open a shop!"
+                action={{
+                  label: 'Apply as Merchant',
+                  onClick: () => navigate('/merchant/apply'),
+                }}
+              />
+            </div>
           )}
         </div>
 
@@ -169,17 +255,16 @@ export function LandingPage() {
       </section>
 
       {mockProducts.length === 0 && (
-        <div className="container mx-auto px-4 md:px-6 py-20 text-center">
-          <MapPin className="w-16 h-16 mx-auto mb-4 text-muted-foreground" strokeWidth={1.5} />
-          <h3 className="font-light text-black mb-2">
-            No shops in your district yet
-          </h3>
-          <p className="text-sm font-light text-muted-foreground mb-6">
-            Check out these national favorites instead
-          </p>
-          <button className="px-6 py-3 bg-gradient-to-r from-[#F97316] to-[#FB923C] text-white rounded-full font-light">
-            Browse All Shops
-          </button>
+        <div className="container mx-auto px-4 md:px-6">
+          <EmptyState
+            icon={MapPin}
+            title="No gifts available yet"
+            description="No gifts available in this district yet. Be the first to open a shop!"
+            action={{
+              label: 'Become a Merchant',
+              onClick: () => navigate('/merchant/apply'),
+            }}
+          />
         </div>
       )}
     </div>

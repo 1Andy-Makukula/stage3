@@ -1,59 +1,40 @@
 // KithLy Notifications Center
 
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { Bell, Gift, CheckCircle, AlertCircle, Info, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Badge } from '../components/ui/badge';
-
-interface Notification {
-  id: string;
-  type: 'success' | 'info' | 'warning';
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-}
-
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'success',
-    title: 'Gift Redeemed',
-    message: 'Your gift "Shoprite Voucher" was successfully redeemed at Garden Mall',
-    time: '2 hours ago',
-    read: false,
-  },
-  {
-    id: '2',
-    type: 'info',
-    title: 'New Gift Received',
-    message: 'You received a new gift worth ZMW 250. Check your vault!',
-    time: '5 hours ago',
-    read: false,
-  },
-  {
-    id: '3',
-    type: 'warning',
-    title: 'Gift Expiring Soon',
-    message: 'Your gift "Cafe Latte Voucher" expires in 2 days',
-    time: '1 day ago',
-    read: true,
-  },
-  {
-    id: '4',
-    type: 'success',
-    title: 'Profile Verified',
-    message: 'Your profile has been verified. You now have full access to KithLy',
-    time: '2 days ago',
-    read: true,
-  },
-];
+import { useAuth } from '../hooks/useAuth';
+import {
+  type AppNotification,
+  getNotifications,
+  markAllNotificationsRead,
+  subscribeNotifications,
+} from '../lib/notifications';
 
 export function Notifications() {
   const navigate = useNavigate();
-  const unreadCount = mockNotifications.filter(n => !n.read).length;
+  const { user } = useAuth();
+  const audience = user?.role === 'merchant' ? 'merchant' : 'buyer';
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
-  const getIcon = (type: Notification['type']) => {
+  useEffect(() => {
+    const refresh = () => setNotifications(getNotifications());
+    refresh();
+    return subscribeNotifications(refresh);
+  }, []);
+
+  const visibleNotifications = useMemo(
+    () =>
+      notifications.filter(
+        (n) => n.audience === 'all' || n.audience === audience
+      ),
+    [notifications, audience]
+  );
+  const unreadCount = visibleNotifications.filter((n) => !n.read).length;
+
+  const getIcon = (type: AppNotification['type']) => {
     switch (type) {
       case 'success':
         return <CheckCircle className="w-5 h-5 text-green-600" strokeWidth={1.5} />;
@@ -64,7 +45,7 @@ export function Notifications() {
     }
   };
 
-  const getBgColor = (type: Notification['type']) => {
+  const getBgColor = (type: AppNotification['type']) => {
     switch (type) {
       case 'success':
         return 'bg-green-50';
@@ -102,14 +83,17 @@ export function Notifications() {
           </div>
 
           {unreadCount > 0 && (
-            <button className="text-sm font-light text-[#F97316] hover:underline">
+            <button
+              onClick={markAllNotificationsRead}
+              className="text-sm font-light text-[#F97316] hover:underline"
+            >
               Mark all read
             </button>
           )}
         </div>
 
         <div className="space-y-3">
-          {mockNotifications.map((notification, idx) => (
+          {visibleNotifications.map((notification, idx) => (
             <motion.div
               key={notification.id}
               initial={{ opacity: 0, y: 20 }}
@@ -143,7 +127,7 @@ export function Notifications() {
           ))}
         </div>
 
-        {mockNotifications.length === 0 && (
+        {visibleNotifications.length === 0 && (
           <div className="text-center py-16">
             <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gray-100 flex items-center justify-center">
               <Bell className="w-10 h-10 text-muted-foreground" strokeWidth={1.5} />

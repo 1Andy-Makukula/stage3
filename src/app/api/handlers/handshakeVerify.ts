@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import type { Logger } from 'pino';
 import { mockTransactions } from '../../data/mock-data';
 import { isValidHandshakeLength, normalizeHandshakeCode } from '../lib/handshakeCode';
+import { sendSms } from '../../../../server/services/smsService';
 
 type RecordFail = (ip: string) => { allowed: boolean; retryAfterSec?: number };
 type ResetFail = (ip: string) => void;
@@ -53,6 +54,13 @@ export async function handleHandshakeVerify(
   }
 
   deps.resetHandshakeFailures(ip);
+  const tx = mockTransactions.find((t) => normalizeHandshakeCode(t.claim_code) === code);
+  if (tx?.buyer?.phone) {
+    await sendSms(
+      tx.buyer.phone,
+      `Your gift was just claimed in ${tx.shop?.district?.name ?? 'your area'}!`
+    );
+  }
   log.info({ ip }, 'handshake_verified');
   res.status(200).json({ ok: true });
 }

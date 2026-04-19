@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express';
 import type { Logger } from 'pino';
+import { sendMerchantEscrowSms, sendRecipientPurchaseSms } from '../../../../server/services/smsService';
+import { mockShops } from '../../data/mock-data';
 
 /**
  * POST /api/payments/initiate
@@ -23,7 +25,10 @@ export async function handlePaymentsInitiate(
     customerEmail?: string;
     reference?: string;
     fulfillment?: { recipient_name?: string; recipient_phone?: string; send_anonymously?: boolean };
-    lines?: unknown[];
+    lines?: Array<{ title?: string }>;
+    buyerName?: string;
+    merchantPhone?: string;
+    claimCode?: string;
   };
 
   try {
@@ -37,6 +42,22 @@ export async function handlePaymentsInitiate(
         },
         'payment_initiate'
       );
+
+      const firstLineTitle = body.lines?.[0]?.title ?? 'KithLy gift';
+      const claimCode = body.claimCode ?? `KL-${idempotencyKey.slice(0, 6).toUpperCase()}`;
+      if (body.fulfillment?.recipient_phone) {
+        await sendRecipientPurchaseSms(
+          body.fulfillment.recipient_phone,
+          body.buyerName ?? 'Someone',
+          firstLineTitle,
+          claimCode
+        );
+      }
+      const merchantPhone = body.merchantPhone ?? mockShops[0]?.contact_phone;
+      if (merchantPhone) {
+        await sendMerchantEscrowSms(merchantPhone, firstLineTitle);
+      }
+
       return {
         status: 'initiated' as const,
         reference,

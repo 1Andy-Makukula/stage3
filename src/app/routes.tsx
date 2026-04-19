@@ -47,6 +47,10 @@ export const router = createBrowserRouter([
           {
             index: true,
             Component: MerchantDashboard,
+          },
+          {
+            path: 'dashboard',
+            Component: MerchantDashboard,
           }
         ]
       },

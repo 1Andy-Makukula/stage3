@@ -7,6 +7,7 @@ import { motion } from 'motion/react';
 import { mockShops, districts } from '../data/mock-data';
 import { Badge } from '../components/ui/badge';
 import { KithLyVerifiedBadge } from '../components/shared/KithLyVerifiedBadge';
+import { EmptyState } from '../components/shared/EmptyState';
 
 export function ShopDirectory() {
   const navigate = useNavigate();
@@ -50,38 +51,50 @@ export function ShopDirectory() {
         </div>
 
         {/* Shop Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredShops.map((shop, idx) => (
-            <motion.div
-              key={shop.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              onClick={() => navigate(`/shop/${shop.id}`)}
-              className="bg-white rounded-[1.5rem] p-6 border border-border hover:shadow-lg transition-shadow cursor-pointer"
-            >
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#F97316] to-[#FB923C] flex items-center justify-center flex-shrink-0">
-                  <Store className="w-7 h-7 text-white" strokeWidth={1.5} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <h3 className="font-light text-black">{shop.business_name}</h3>
-                    {shop.is_verified && <KithLyVerifiedBadge compact />}
+        {filteredShops.length === 0 ? (
+          <EmptyState
+            icon={Store}
+            title="No shops found"
+            description="No gifts available in this district yet. Be the first to open a shop!"
+            action={{
+              label: 'Apply as Merchant',
+              onClick: () => navigate('/merchant/apply'),
+            }}
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredShops.map((shop, idx) => (
+              <motion.div
+                key={shop.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.05 }}
+                onClick={() => navigate(`/shop/${shop.id}`)}
+                className="bg-white rounded-[1.5rem] p-6 border border-border hover:shadow-lg transition-shadow cursor-pointer"
+              >
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#F97316] to-[#FB923C] flex items-center justify-center flex-shrink-0">
+                    <Store className="w-7 h-7 text-white" strokeWidth={1.5} />
                   </div>
-                  <div className="flex items-center gap-1 text-xs font-light text-muted-foreground">
-                    <MapPin className="w-3 h-3" strokeWidth={1.5} />
-                    {shop.district?.name}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <h3 className="font-light text-black">{shop.business_name}</h3>
+                      {shop.is_verified && <KithLyVerifiedBadge compact />}
+                    </div>
+                    <div className="flex items-center gap-1 text-xs font-light text-muted-foreground">
+                      <MapPin className="w-3 h-3" strokeWidth={1.5} />
+                      {shop.district?.name}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <p className="text-sm font-light text-muted-foreground mb-4 line-clamp-2">{shop.description}</p>
-              <div className="flex items-center justify-between">
-                <Badge className="font-light">General</Badge>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+                <p className="text-sm font-light text-muted-foreground mb-4 line-clamp-2">{shop.description}</p>
+                <div className="flex items-center justify-between">
+                  <Badge className="font-light">General</Badge>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
