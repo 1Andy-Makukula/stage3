@@ -1,36 +1,115 @@
 // KithLy Merchant Dashboard - Unified interface
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Store, TrendingUp, Clock, Package, Megaphone, Settings, Plus, QrCode, BarChart } from 'lucide-react';
 import { HandshakeTerminal } from '../components/shared/HandshakeTerminal';
-import { mockTransactions, mockProducts } from '../data/mock-data';
+import { mockTransactions, mockProducts, mockShops } from '../data/mock-data';
 import { formatZMW, formatRelativeTime } from '../utils/formatters';
 import { Card } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Badge } from '../components/ui/badge';
 import { ProductModal } from '../components/shared/ProductModal';
-import { Product } from '../types';
+import { AdCampaignModal } from '../components/shared/AdCampaignModal';
+import type { Product, ProductCategory } from '../types';
 import { toast } from 'sonner';
+import { postJson } from '../lib/api';
+
+const MERCHANT_SHOP_ID = 'shop-1';
 
 export function MerchantDashboard() {
+  const merchantShop = mockShops.find((s) => s.id === MERCHANT_SHOP_ID)!;
+
   const [recentRedemptions, setRecentRedemptions] = useState(
-    mockTransactions.filter(t => t.status === 'completed')
+    mockTransactions.filter((t) => t.status === 'completed')
   );
 
+  const [inventoryProducts, setInventoryProducts] = useState<Product[]>(() =>
+    mockProducts.filter((p) => p.shop_id === MERCHANT_SHOP_ID)
+  );
+
+  const [shopSettings, setShopSettings] = useState({
+    businessName: merchantShop.business_name,
+    locationLabel:
+      [merchantShop.district?.name, merchantShop.district?.province].filter(Boolean).join(', ') ||
+      'Lusaka, Zambia',
+  });
+
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isAdModalOpen, setIsAdModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
+  const handleProductSave = (data: Partial<Product>) => {
+    const isEdit = Boolean(data.id);
+    setInventoryProducts((prev) => {
+      const existingId = data.id;
+      if (existingId && prev.some((p) => p.id === existingId)) {
+        return prev.map((p) =>
+          p.id === existingId
+            ? ({
+                ...p,
+                ...data,
+                shop_id: MERCHANT_SHOP_ID,
+                shop: merchantShop,
+              } as Product)
+            : p
+        );
+      }
+      const category = (data.category ?? 'other') as ProductCategory;
+      const newProduct: Product = {
+        id: `prod-${Date.now()}`,
+        shop_id: MERCHANT_SHOP_ID,
+        shop: merchantShop,
+        title: data.title ?? 'New product',
+        description: data.description ?? '',
+        price_zmw: data.price_zmw ?? 0,
+        stock_count: data.stock_count ?? 0,
+        category,
+        images: data.images?.length
+          ? data.images
+          : [
+              'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80&auto=format&fit=crop',
+            ],
+        featured: data.featured ?? false,
+        created_at: new Date().toISOString(),
+      };
+      return [...prev, newProduct];
+    });
+    toast.success(isEdit ? 'Product updated' : 'Product added', {
+      description: data.title ?? '',
+    });
+  };
+
+  const handleSettingsSave = () => {
+    toast.success('Shop profile updated', {
+      description: `${shopSettings.businessName} · ${shopSettings.locationLabel}`,
+    });
+  };
+
   const handleVerifyCode = async (code: string): Promise<boolean> => {
-    // Mock verification
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    const success = Math.random() > 0.2;
-    if (success) {
-      toast.success('Gift successfully verified and claimed!');
-      setRecentRedemptions(prev => [mockTransactions[0], ...prev]);
-    } else {
-      toast.error('Invalid or expired code.');
+    try {
+      const { ok, status, data } = await postJson<{ ok?: boolean; error?: string }>(
+        '/api/handshake/verify',
+        { code }
+      );
+      if (status === 429) {
+        toast.error('Too many attempts', {
+          description: data?.error ?? 'Try again in a minute.',
+        });
+        return false;
+      }
+      if (ok && data?.ok) {
+        toast.success('Gift successfully verified and claimed!');
+        setRecentRedemptions((prev) => [mockTransactions[0], ...prev]);
+        return true;
+      }
+      toast.error(data?.error ?? 'Invalid or expired code.');
+      return false;
+    } catch {
+      toast.error('Verification failed', {
+        description: 'Check your connection and try again.',
+      });
+      return false;
     }
-    return success;
   };
 
   const todayEarnings = recentRedemptions.reduce((sum, t) => sum + t.amount_zmw, 0);
@@ -122,14 +201,17 @@ export function MerchantDashboard() {
               <h2 className="text-xl font-light text-black">Inventory Management</h2>
               <p className="text-sm font-light text-muted-foreground">Manage your product listings</p>
             </div>
-            <button 
-              onClick={() => { setSelectedProduct(null); setIsProductModalOpen(true); }}
+            <button
+              onClick={() => {
+                setSelectedProduct(null);
+                setIsProductModalOpen(true);
+              }}
               className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl font-light hover:bg-slate-800 transition-colors"
             >
               <Plus className="w-4 h-4" /> Add Item
             </button>
           </div>
-          
+
           <Card className="p-0 border-none shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm font-light">
@@ -142,7 +224,7 @@ export function MerchantDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {mockProducts.slice(0, 5).map((product) => (
+                  {inventoryProducts.map((product) => (
                     <tr key={product.id} className="hover:bg-gray-50/50">
                       <td className="px-6 py-4 flex items-center gap-3">
                         <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
@@ -159,12 +241,24 @@ export function MerchantDashboard() {
                       </td>
                       <td className="px-6 py-4">{formatZMW(product.price_zmw)}</td>
                       <td className="px-6 py-4">
-                        <Badge className={`${product.stock_count > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"} border-none font-light`}>
+                        <Badge
+                          className={`${
+                            product.stock_count > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          } border-none font-light`}
+                        >
                           {product.stock_count > 0 ? `In Stock (${product.stock_count})` : 'Out of Stock'}
                         </Badge>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button onClick={() => { setSelectedProduct(product as Product); setIsProductModalOpen(true); }} className="text-muted-foreground hover:text-black transition-colors">Edit</button>
+                        <button
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setIsProductModalOpen(true);
+                          }}
+                          className="text-muted-foreground hover:text-black transition-colors"
+                        >
+                          Edit
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -181,11 +275,15 @@ export function MerchantDashboard() {
               <h2 className="text-xl font-light text-black">Active Campaigns</h2>
               <p className="text-sm font-light text-muted-foreground">Manage your promoted listings and shop ads</p>
             </div>
-            <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#F97316] to-[#FB923C] text-white rounded-xl font-light hover:opacity-90 transition-opacity">
+            <button
+              type="button"
+              onClick={() => setIsAdModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#F97316] to-[#FB923C] text-white rounded-xl font-light hover:opacity-90 transition-opacity"
+            >
               <Plus className="w-4 h-4" /> Create Ad Campaign
             </button>
           </div>
-          
+
           <div className="grid lg:grid-cols-2 gap-6">
             <Card className="p-6 border-none shadow-sm flex flex-col justify-between min-h-[200px]">
               <div>
@@ -194,7 +292,9 @@ export function MerchantDashboard() {
                   <span className="text-xs text-muted-foreground font-light">Ends in 3 days</span>
                 </div>
                 <h3 className="font-medium text-black text-lg">Summer Sale Spotlight</h3>
-                <p className="text-sm font-light text-muted-foreground mt-1">Featured placement in "Discover More" feed</p>
+                <p className="text-sm font-light text-muted-foreground mt-1">
+                  Featured placement in &quot;Discover More&quot; feed
+                </p>
               </div>
               <div className="mt-6 flex justify-between items-end">
                 <div>
@@ -207,12 +307,20 @@ export function MerchantDashboard() {
                 </div>
               </div>
             </Card>
-            
-            <Card className="p-6 border-dashed border-2 bg-transparent shadow-none flex flex-col items-center justify-center text-center cursor-pointer hover:border-[#F97316] transition-colors min-h-[200px]">
-              <Megaphone className="w-8 h-8 mb-3 text-muted-foreground" strokeWidth={1.5} />
-              <h3 className="font-light text-black">Boost your next product</h3>
-              <p className="text-sm text-muted-foreground font-light max-w-xs mt-1">Get more eyes on your shop by running targeted promotions.</p>
-            </Card>
+
+            <button
+              type="button"
+              onClick={() => setIsAdModalOpen(true)}
+              className="text-left rounded-[inherit]"
+            >
+              <Card className="p-6 border-dashed border-2 bg-transparent shadow-none flex flex-col items-center justify-center text-center cursor-pointer hover:border-[#F97316] transition-colors min-h-[200px]">
+                <Megaphone className="w-8 h-8 mb-3 text-muted-foreground" strokeWidth={1.5} />
+                <h3 className="font-light text-black">Boost your next product</h3>
+                <p className="text-sm text-muted-foreground font-light max-w-xs mt-1">
+                  Get more eyes on your shop by running targeted promotions.
+                </p>
+              </Card>
+            </button>
           </div>
         </TabsContent>
 
@@ -221,7 +329,7 @@ export function MerchantDashboard() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-xl font-light text-black">Sales Analytics</h2>
-              <p className="text-sm font-light text-muted-foreground">Monitor your shop's performance</p>
+              <p className="text-sm font-light text-muted-foreground">Monitor your shop&apos;s performance</p>
             </div>
             <select className="px-4 py-2 bg-white border border-border rounded-xl font-light text-sm outline-none">
               <option>Last 7 Days</option>
@@ -259,7 +367,8 @@ export function MerchantDashboard() {
               <BarChart className="w-12 h-12 mx-auto mb-4 text-muted-foreground" strokeWidth={1.5} />
               <h3 className="text-lg font-light text-black mb-2">Revenue Overview Chart</h3>
               <p className="text-sm font-light text-muted-foreground max-w-sm mx-auto">
-                Interactive charts will be available in the next release to give you detailed visual breakdowns of your historical sales data.
+                Interactive charts will be available in the next release to give you detailed visual breakdowns of your
+                historical sales data.
               </p>
             </div>
           </Card>
@@ -271,18 +380,40 @@ export function MerchantDashboard() {
             <h3 className="font-medium mb-4">Shop Profile</h3>
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-light text-muted-foreground">Business Name</label>
-                <input type="text" defaultValue="My KithLy Shop" className="w-full px-4 py-2 mt-1 border border-border rounded-lg bg-gray-50 focus:bg-white focus:outline-none" />
+                <label className="text-xs font-light text-muted-foreground" htmlFor="shop-business-name">
+                  Business Name
+                </label>
+                <input
+                  id="shop-business-name"
+                  type="text"
+                  value={shopSettings.businessName}
+                  onChange={(e) => setShopSettings((s) => ({ ...s, businessName: e.target.value }))}
+                  className="w-full px-4 py-2 mt-1 border border-border rounded-lg bg-gray-50 focus:bg-white focus:outline-none"
+                />
               </div>
               <div>
-                <label className="text-xs font-light text-muted-foreground">Location</label>
-                <input type="text" defaultValue="Lusaka, Zambia" className="w-full px-4 py-2 mt-1 border border-border rounded-lg bg-gray-50 focus:bg-white focus:outline-none" />
+                <label className="text-xs font-light text-muted-foreground" htmlFor="shop-location">
+                  Location
+                </label>
+                <input
+                  id="shop-location"
+                  type="text"
+                  value={shopSettings.locationLabel}
+                  onChange={(e) => setShopSettings((s) => ({ ...s, locationLabel: e.target.value }))}
+                  className="w-full px-4 py-2 mt-1 border border-border rounded-lg bg-gray-50 focus:bg-white focus:outline-none"
+                />
               </div>
-              <button onClick={() => toast.success('Shop profile updated successfully')} className="px-6 py-2 bg-slate-900 text-white rounded-lg font-light text-sm">Save Changes</button>
+              <button
+                type="button"
+                onClick={handleSettingsSave}
+                className="px-6 py-2 bg-slate-900 text-white rounded-lg font-light text-sm"
+              >
+                Save Changes
+              </button>
             </div>
-            
+
             <hr className="my-8 border-border" />
-            
+
             <h3 className="font-medium mb-4">Payout Connection</h3>
             <div className="flex items-center justify-between p-4 border border-border rounded-lg">
               <div className="flex items-center gap-3">
@@ -292,18 +423,22 @@ export function MerchantDashboard() {
                   <p className="text-xs text-muted-foreground">Connected • Auto-payouts enabled</p>
                 </div>
               </div>
-              <button className="text-sm text-[#F97316] font-light hover:underline">Manage</button>
+              <button type="button" className="text-sm text-[#F97316] font-light hover:underline">
+                Manage
+              </button>
             </div>
           </Card>
         </TabsContent>
-
       </Tabs>
 
-      <ProductModal 
-        isOpen={isProductModalOpen} 
-        onClose={() => setIsProductModalOpen(false)} 
-        product={selectedProduct} 
+      <ProductModal
+        isOpen={isProductModalOpen}
+        onClose={() => setIsProductModalOpen(false)}
+        product={selectedProduct}
+        onSave={handleProductSave}
       />
+
+      <AdCampaignModal isOpen={isAdModalOpen} onClose={() => setIsAdModalOpen(false)} />
     </div>
   );
 }

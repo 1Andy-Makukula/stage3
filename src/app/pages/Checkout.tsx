@@ -12,11 +12,13 @@ import { QRCodeDisplay } from '../components/shared/QRCodeDisplay';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { toast } from 'sonner';
+import { newIdempotencyKey, postJson } from '../lib/api';
+import type { CheckoutOrderPayload, GiftFulfillmentDetails } from '../types';
 
 export function Checkout() {
   const navigate = useNavigate();
   const { items, getItemsByShop, getTotalAmount, clearCart } = useCart();
-  const { isAuthenticated, profile } = useAuth();
+  const { isAuthenticated, profile, user } = useAuth();
   const [step, setStep] = useState<'cart' | 'personalize' | 'payment' | 'success'>('cart');
   const [handshakeCodes, setHandshakeCodes] = useState<string[]>([]);
 
@@ -40,9 +42,71 @@ export function Checkout() {
 
   const handlePayment = async () => {
     setStep('payment');
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    const paymentKey = newIdempotencyKey();
+
+    const fulfillment: GiftFulfillmentDetails = {
+      recipient_name: recipientName.trim() || '—',
+      recipient_phone: recipientPhone.trim() || '—',
+      gift_message: giftMessage.trim() || undefined,
+      sender_name: isAnonymous ? undefined : senderName.trim() || undefined,
+      send_anonymously: isAnonymous,
+    };
+
+    const checkoutLines = items.map((item) => ({
+      product_id: item.product.id,
+      shop_id: item.product.shop_id,
+      quantity: item.quantity,
+      unit_price_zmw: item.product.price_zmw,
+      title: item.product.title,
+    }));
+
+    try {
+      const { ok } = await postJson<{ idempotentReplay?: boolean }>(
+        '/api/payments/initiate',
+        {
+          amountZmw: total,
+          currency: 'ZMW',
+          reference: `checkout-${Date.now()}`,
+          customerEmail: user?.email,
+          fulfillment,
+          lines: checkoutLines,
+        },
+        { 'Idempotency-Key': paymentKey }
+      );
+      if (!ok) {
+        throw new Error('payment_init_failed');
+      }
+    } catch {
+      setStep('personalize');
+      toast.error('Payment could not start', {
+        description: 'Check your connection and try again.',
+      });
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
     const codes = Array.from(itemsByShop.keys()).map(() => generateHandshake());
+
+    const orderPayload: CheckoutOrderPayload = {
+      id: `ord-${Date.now()}`,
+      buyer_id: user?.id ?? '',
+      lines: checkoutLines,
+      amount_zmw: total,
+      currency: 'ZMW',
+      fulfillment,
+      handshake_codes: codes,
+      payment_reference: `checkout-${Date.now()}`,
+      idempotency_key: paymentKey,
+      created_at: new Date().toISOString(),
+    };
+
+    try {
+      sessionStorage.setItem('kithly_last_checkout_order', JSON.stringify(orderPayload));
+    } catch {
+      /* quota / private mode */
+    }
+
     setHandshakeCodes(codes);
     setStep('success');
     clearCart();

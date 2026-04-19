@@ -1,9 +1,10 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 import { User, UserProfile } from "../../types";
-import { CheckCircle, Clock, ShieldAlert, User as UserIcon, Ban } from "lucide-react";
+import { CheckCircle, Clock, User as UserIcon, Ban } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { toast } from "sonner";
+import { profileDisplayName } from "../../utils/formatters";
 
 interface UserDetailModalProps {
   isOpen: boolean;
@@ -13,7 +14,9 @@ interface UserDetailModalProps {
 }
 
 export function UserDetailModal({ isOpen, onClose, user, profile }: UserDetailModalProps) {
-  if (!user || !profile) return null;
+  if (!user) return null;
+
+  const displayName = profileDisplayName(user, profile);
 
   const handleVerify = () => {
     toast.success("User verified successfully");
@@ -25,6 +28,8 @@ export function UserDetailModal({ isOpen, onClose, user, profile }: UserDetailMo
     onClose();
   };
 
+  const verified = profile?.is_verified ?? false;
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[450px]">
@@ -34,7 +39,7 @@ export function UserDetailModal({ isOpen, onClose, user, profile }: UserDetailMo
               <UserIcon className="w-6 h-6 text-gray-500" />
             </div>
             <div>
-              <DialogTitle className="font-light">{user.full_name || 'No Name'}</DialogTitle>
+              <DialogTitle className="font-light">{displayName}</DialogTitle>
               <DialogDescription className="font-light">{user.email}</DialogDescription>
             </div>
           </div>
@@ -48,13 +53,15 @@ export function UserDetailModal({ isOpen, onClose, user, profile }: UserDetailMo
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-light mb-1">Status</p>
-              {profile.is_verified ? (
+              {profile && verified ? (
                 <div className="flex items-center gap-1 text-green-600 text-sm">
                   <CheckCircle className="w-4 h-4" /> <span className="font-light">Verified</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-1 text-orange-600 text-sm">
-                  <Clock className="w-4 h-4" /> <span className="font-light">Pending Verification</span>
+                  <Clock className="w-4 h-4" /> <span className="font-light">
+                    {profile ? "Pending verification" : "No profile document"}
+                  </span>
                 </div>
               )}
             </div>
@@ -64,13 +71,15 @@ export function UserDetailModal({ isOpen, onClose, user, profile }: UserDetailMo
             </div>
             <div>
               <p className="text-xs text-muted-foreground font-light mb-1">District</p>
-              <p className="text-sm font-light">{profile.district?.name || 'Not set'}</p>
+              <p className="text-sm font-light">{profile?.district?.name || "—"}</p>
             </div>
             <div className="col-span-2">
               <p className="text-xs text-muted-foreground font-light mb-1">NRC Number</p>
-              <p className="text-sm font-light bg-gray-50 p-2 rounded-lg border border-border">{profile.nrc_number || 'Not provided'}</p>
+              <p className="text-sm font-light bg-gray-50 p-2 rounded-lg border border-border">
+                {profile?.nrc_number || "—"}
+              </p>
             </div>
-            {profile.tpin && (
+            {profile?.tpin && (
               <div className="col-span-2">
                 <p className="text-xs text-muted-foreground font-light mb-1">TPIN</p>
                 <p className="text-sm font-light bg-gray-50 p-2 rounded-lg border border-border">{profile.tpin}</p>
@@ -80,7 +89,7 @@ export function UserDetailModal({ isOpen, onClose, user, profile }: UserDetailMo
         </div>
 
         <div className="flex gap-3 pt-4 border-t border-border">
-          {!profile.is_verified && (
+          {profile && !verified && (
             <Button onClick={handleVerify} className="flex-1 font-light bg-green-600 hover:bg-green-700 text-white">
               Approve & Verify
             </Button>

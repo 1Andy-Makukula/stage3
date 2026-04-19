@@ -6,15 +6,18 @@ import { motion } from 'motion/react';
 import { ShoppingCart, MapPin, Store, ArrowLeft, Heart, Share2 } from 'lucide-react';
 import { mockProducts } from '../data/mock-data';
 import { useCart } from '../hooks/useCart';
+import { useWishlist } from '../hooks/useWishlist';
 import { formatZMW } from '../utils/formatters';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
+import { KithLyVerifiedBadge } from '../components/shared/KithLyVerifiedBadge';
 import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
 
 export function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addToCart } = useCart();
+  const { addToCartOptimistic } = useCart();
+  const { toggleWishlistOptimistic, isInWishlist } = useWishlist();
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
 
@@ -33,9 +36,29 @@ export function ProductDetail() {
     );
   }
 
-  const handleAddToCart = () => {
-    addToCart(product, quantity);
-    toast.success('Added to cart');
+  const wishlisted = isInWishlist(product.id);
+
+  const handleAddToCart = async () => {
+    try {
+      await addToCartOptimistic(product, quantity);
+      toast.success('Added to cart');
+    } catch {
+      toast.error('Could not add to cart', {
+        description: 'Check your connection and try again.',
+      });
+    }
+  };
+
+  const handleWishlistToggle = async () => {
+    const wasIn = wishlisted;
+    try {
+      await toggleWishlistOptimistic(product);
+      toast.success(wasIn ? 'Removed from wishlist' : 'Saved to wishlist');
+    } catch {
+      toast.error('Could not update wishlist', {
+        description: 'Check your connection and try again.',
+      });
+    }
   };
 
   return (
@@ -88,8 +111,16 @@ export function ProductDetail() {
               <div className="flex items-start justify-between mb-2">
                 <h1 className="text-3xl font-light text-black">{product.title}</h1>
                 <div className="flex gap-2">
-                  <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                    <Heart className="w-5 h-5" strokeWidth={1.5} />
+                  <button
+                    type="button"
+                    onClick={handleWishlistToggle}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+                  >
+                    <Heart
+                      className={`w-5 h-5 ${wishlisted ? 'fill-[#F97316] text-[#F97316]' : ''}`}
+                      strokeWidth={1.5}
+                    />
                   </button>
                   <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                     <Share2 className="w-5 h-5" strokeWidth={1.5} />
@@ -112,9 +143,12 @@ export function ProductDetail() {
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#F97316] to-[#FB923C] flex items-center justify-center">
                   <Store className="w-6 h-6 text-white" strokeWidth={1.5} />
                 </div>
-                <div>
-                  <h3 className="font-light text-black">{product.shop?.name}</h3>
-                  <div className="flex items-center gap-1 text-xs font-light text-muted-foreground">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-light text-black">{product.shop?.business_name}</h3>
+                    {product.shop?.is_verified && <KithLyVerifiedBadge compact />}
+                  </div>
+                  <div className="flex items-center gap-1 text-xs font-light text-muted-foreground mt-1">
                     <MapPin className="w-3 h-3" strokeWidth={1.5} />
                     {product.shop?.district?.name}, {product.shop?.district?.province}
                   </div>

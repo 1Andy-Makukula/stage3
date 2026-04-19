@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "dev:api": "tsx watch server/index.ts",
+    "dev:all": "concurrently -k \"npm run dev\" \"npm run dev:api\"",
+    "start:api": "tsx server/index.ts"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -39,6 +42,8 @@
     "@radix-ui/react-toggle": "1.1.2",
     "@radix-ui/react-toggle-group": "1.1.2",
     "@radix-ui/react-tooltip": "1.1.8",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
     "canvas-confetti": "1.9.4",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
@@ -48,6 +53,8 @@
     "input-otp": "1.4.2",
     "lucide-react": "0.487.0",
     "motion": "12.23.24",
+    "pino": "^9.6.0",
+    "pino-http": "^10.4.0",
     "next-themes": "0.4.6",
     "qrcode": "^1.5.4",
     "react-day-picker": "8.10.1",
@@ -67,9 +74,13 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
     "@tailwindcss/vite": "4.1.12",
     "@types/canvas-confetti": "^1.9.0",
     "@types/qrcode": "^1.5.6",
+    "concurrently": "^9.1.2",
+    "tsx": "^4.19.3",
     "@vitejs/plugin-react": "4.7.0",
     "tailwindcss": "4.1.12",
     "vite": "^6.4.2"

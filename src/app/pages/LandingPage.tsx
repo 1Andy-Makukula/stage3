@@ -1,20 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 import { Sparkles, TrendingUp, MapPin, Search } from 'lucide-react';
 import { HeroSlider } from '../components/shared/HeroSlider';
 import { HorizontalProductRibbon } from '../components/shared/HorizontalProductRibbon';
 import { ProductCard } from '../components/shared/ProductCard';
-import { Skeleton } from '../components/ui/skeleton';
+import { ProductCardSkeleton } from '../components/shared/ProductCardSkeleton';
+import { ErrorBoundary } from '../components/shared/ErrorBoundary';
 import { heroSlides, mockProducts, districts } from '../data/mock-data';
-import type { Product } from '../types';
 
 export function LandingPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [marketLoading, setMarketLoading] = useState(true);
   const [selectedDistrict, setSelectedDistrict] = useState<string>('');
   
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get('q');
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setMarketLoading(false), 550);
+    return () => window.clearTimeout(t);
+  }, []);
 
   const filteredProducts = mockProducts.filter(p => {
     const matchesDistrict = selectedDistrict ? p.shop?.district_id === selectedDistrict : true;
@@ -31,15 +35,15 @@ export function LandingPage() {
   const giftProducts = filteredProducts.filter(p => p.category === 'gifts');
   const electronicsProducts = filteredProducts.filter(p => p.category === 'electronics');
 
-  const handleProductClick = (product: Product) => {
-    setSelectedProduct(product);
-  };
+  const ribbonBusy = !searchQuery && marketLoading;
 
   return (
     <div className="min-h-screen bg-gray-50">
       {!searchQuery && (
         <section className="container mx-auto px-4 md:px-6 py-6">
-          <HeroSlider slides={heroSlides} />
+          <ErrorBoundary fallbackTitle="Promotions could not load.">
+            <HeroSlider slides={heroSlides} />
+          </ErrorBoundary>
         </section>
       )}
 
@@ -73,35 +77,35 @@ export function LandingPage() {
             title="Featured Gifts"
             subtitle="Handpicked for you"
             products={featuredProducts}
-            onProductClick={handleProductClick}
+            loading={ribbonBusy}
           />
 
           <HorizontalProductRibbon
             title="Popular in Garden"
             subtitle="Trending near you"
             products={mockProducts.filter(p => p.shop?.district?.name === 'Garden')}
-            onProductClick={handleProductClick}
+            loading={ribbonBusy}
           />
 
           <HorizontalProductRibbon
             title="Food & Grocery"
             subtitle="Fresh from local shops"
             products={foodProducts}
-            onProductClick={handleProductClick}
+            loading={ribbonBusy}
           />
 
           <HorizontalProductRibbon
             title="Gift Cards"
             subtitle="Perfect for any occasion"
             products={giftProducts}
-            onProductClick={handleProductClick}
+            loading={ribbonBusy}
           />
 
           <HorizontalProductRibbon
             title="Electronics"
             subtitle="Latest gadgets and tech"
             products={electronicsProducts}
-            onProductClick={handleProductClick}
+            loading={ribbonBusy}
           />
         </>
       )}
@@ -122,23 +126,15 @@ export function LandingPage() {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-          {isLoading ? (
+          {marketLoading ? (
             Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="space-y-3">
-                <Skeleton className="aspect-square rounded-[1rem]" />
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-              </div>
+              <ProductCardSkeleton key={`grid-sk-${i}`} />
             ))
           ) : filteredProducts.length > 0 ? (
             filteredProducts.map((product, index) => (
               <div key={product.id}>
-                <ProductCard
-                  product={product}
-                  onClick={() => handleProductClick(product)}
-                />
+                <ProductCard product={product} />
                 
-                {/* Interstitial Ad Card every 6 products (only on discover view) */}
                 {!searchQuery && (index + 1) % 6 === 0 && (
                   <div className="col-span-2 md:col-span-3 lg:col-span-4 my-6">
                     <div className="bg-gradient-to-r from-[#F97316] to-[#FB923C] rounded-[1rem] p-8 text-white text-center">

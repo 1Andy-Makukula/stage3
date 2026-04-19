@@ -4,7 +4,6 @@ import { Store, CheckCircle, Clock, Ban } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { toast } from "sonner";
-import { formatZMW } from "../../utils/formatters";
 
 interface MerchantDetailModalProps {
   isOpen: boolean;

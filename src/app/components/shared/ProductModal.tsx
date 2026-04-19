@@ -80,8 +80,9 @@ export function ProductModal({ isOpen, onClose, product, onSave }: ProductModalP
 
     if (onSave) {
       onSave(formData);
+    } else {
+      toast.success(isEditing ? "Product updated successfully!" : "Product created successfully!");
     }
-    toast.success(isEditing ? "Product updated successfully!" : "Product created successfully!");
     onClose();
   };
 

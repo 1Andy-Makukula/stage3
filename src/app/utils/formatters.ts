@@ -1,5 +1,7 @@
 // KithLy Formatters - All data display must pass through these
 
+import type { Shop, User, UserProfile } from '../types';
+
 /**
  * Format Zambian Kwacha (ZMW) with proper currency formatting
  */
@@ -78,4 +80,16 @@ export function formatRelativeTime(dateString: string): string {
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
   return date.toLocaleDateString();
+}
+
+/** Prefer `business_name`; `name` is a legacy / Firebase alias only. */
+export function shopDisplayName(shop: Pick<Shop, 'business_name' | 'name'>): string {
+  return (shop.business_name || shop.name || '').trim();
+}
+
+/** Resolves display name from profile denormalization or canonical {@link User.full_name}. */
+export function profileDisplayName(user: User, profile?: UserProfile | null): string {
+  const fromProfile = profile?.full_name?.trim();
+  if (fromProfile) return fromProfile;
+  return user.full_name?.trim() || '—';
 }

@@ -5,6 +5,7 @@ import { Header } from '../components/layout/Header';
 import { Footer } from '../components/layout/Footer';
 import { ProfileVerificationBanner } from '../components/shared/ProfileVerificationBanner';
 import { BackToTop } from '../components/shared/BackToTop';
+import { ErrorBoundary } from '../components/shared/ErrorBoundary';
 import { Toaster } from '../components/ui/sonner';
 import { useAuth } from '../hooks/useAuth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../components/ui/sheet';
@@ -64,7 +65,9 @@ export function Root() {
       {isAuthenticated && <ProfileVerificationBanner onComplete={handleCompleteProfile} />}
 
       <main className="flex-1">
-        <Outlet />
+        <ErrorBoundary fallbackTitle="This section could not be displayed.">
+          <Outlet />
+        </ErrorBoundary>
       </main>
 
       <Footer />

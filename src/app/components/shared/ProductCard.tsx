@@ -16,8 +16,8 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, onClick }: ProductCardProps) {
-  const { addToCart } = useCart();
-  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const { addToCartOptimistic } = useCart();
+  const { toggleWishlistOptimistic, isInWishlist } = useWishlist();
   const navigate = useNavigate();
   const inWishlist = isInWishlist(product.id);
 
@@ -29,22 +29,30 @@ export function ProductCard({ product, onClick }: ProductCardProps) {
     }
   };
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    addToCart(product);
-    toast.success('Added to cart', {
-      description: product.title,
-    });
+    try {
+      await addToCartOptimistic(product);
+      toast.success('Added to cart', {
+        description: product.title,
+      });
+    } catch {
+      toast.error('Could not add to cart', {
+        description: 'Check your connection and try again.',
+      });
+    }
   };
 
-  const handleWishlist = (e: React.MouseEvent) => {
+  const handleWishlist = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (inWishlist) {
-      removeFromWishlist(product.id);
-      toast.success('Removed from wishlist');
-    } else {
-      addToWishlist(product);
-      toast.success('Added to wishlist');
+    const wasIn = inWishlist;
+    try {
+      await toggleWishlistOptimistic(product);
+      toast.success(wasIn ? 'Removed from wishlist' : 'Added to wishlist');
+    } catch {
+      toast.error('Could not update wishlist', {
+        description: 'Check your connection and try again.',
+      });
     }
   };
 

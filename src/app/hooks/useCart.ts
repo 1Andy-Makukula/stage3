@@ -3,12 +3,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { CartItem, Product } from '../types';
+import { newIdempotencyKey, postJson } from '../lib/api';
 
 interface CartState {
   items: CartItem[];
   
   // Actions
   addToCart: (product: Product, quantity?: number) => void;
+  /** Optimistic add with server reconciliation; rolls back on failure. */
+  addToCartOptimistic: (product: Product, quantity?: number) => Promise<void>;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
@@ -36,6 +39,24 @@ export const useCart = create<CartState>()(
           });
         } else {
           set({ items: [...items, { product, quantity }] });
+        }
+      },
+
+      addToCartOptimistic: async (product: Product, quantity = 1) => {
+        const previous = get().items.map((i) => ({ ...i, product: i.product }));
+        get().addToCart(product, quantity);
+        try {
+          const { ok, status } = await postJson<{ error?: string }>(
+            '/api/cart/line',
+            { productId: product.id, quantity },
+            { 'Idempotency-Key': newIdempotencyKey() }
+          );
+          if (!ok && status >= 500) {
+            throw new Error('sync_failed');
+          }
+        } catch {
+          set({ items: previous });
+          throw new Error('CART_SYNC_FAILED');
         }
       },
 

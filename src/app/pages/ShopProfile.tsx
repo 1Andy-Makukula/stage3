@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, MapPin, Store, Phone, Clock, CheckCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { mockShops, mockProducts } from '../data/mock-data';
+import { shopDisplayName } from '../utils/formatters';
 import { ProductCard } from '../components/shared/ProductCard';
 import { Badge } from '../components/ui/badge';
 
@@ -35,7 +36,7 @@ export function ShopProfile() {
             <div className="flex-1">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <h1 className="text-3xl font-light text-black mb-2">{shop.name}</h1>
+                  <h1 className="text-3xl font-light text-black mb-2">{shopDisplayName(shop)}</h1>
                   <p className="text-sm font-light text-muted-foreground">{shop.description}</p>
                 </div>
                 {shop.is_verified && (

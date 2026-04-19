@@ -3,12 +3,15 @@
 import { ChevronRight } from 'lucide-react';
 import type { Product } from '../../types';
 import { ProductCard } from './ProductCard';
+import { ProductCardSkeleton } from './ProductCardSkeleton';
 import { ScrollArea, ScrollBar } from '../ui/scroll-area';
 
 interface HorizontalProductRibbonProps {
   title: string;
   subtitle?: string;
   products: Product[];
+  /** Show skeleton cards while content resolves. */
+  loading?: boolean;
   onViewAll?: () => void;
   onProductClick?: (product: Product) => void;
 }
@@ -17,6 +20,7 @@ export function HorizontalProductRibbon({
   title,
   subtitle,
   products,
+  loading = false,
   onViewAll,
   onProductClick,
 }: HorizontalProductRibbonProps) {
@@ -47,14 +51,20 @@ export function HorizontalProductRibbon({
       {/* Horizontal Scroll */}
       <ScrollArea className="w-full whitespace-nowrap">
         <div className="flex gap-4 px-4 md:px-6 pb-4">
-          {products.map((product) => (
-            <div key={product.id} className="w-64 flex-shrink-0">
-              <ProductCard
-                product={product}
-                onClick={() => onProductClick?.(product)}
-              />
-            </div>
-          ))}
+          {loading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <div key={`sk-${i}`} className="w-64 flex-shrink-0">
+                  <ProductCardSkeleton />
+                </div>
+              ))
+            : products.map((product) => (
+                <div key={product.id} className="w-64 flex-shrink-0">
+                  <ProductCard
+                    product={product}
+                    onClick={() => onProductClick?.(product)}
+                  />
+                </div>
+              ))}
         </div>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
