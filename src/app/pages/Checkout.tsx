@@ -92,7 +92,7 @@ export function Checkout() {
                           <Gift className="w-5 h-5 text-white" strokeWidth={1.5} />
                         </div>
                         <div>
-                          <h3 className="font-light text-black">{shop?.name}</h3>
+                          <h3 className="font-light text-black">{shop?.business_name}</h3>
                           <p className="text-xs font-light text-muted-foreground">
                             {shop?.district?.name}
                           </p>
@@ -273,24 +273,59 @@ export function Checkout() {
                   </TabsList>
 
                   <TabsContent value="momo" className="space-y-4">
+                    <div className="flex gap-2 mb-4">
+                      <button className="flex-1 py-2 border-2 border-orange-200 bg-orange-50 text-orange-600 rounded-xl font-medium text-sm">Airtel Money</button>
+                      <button className="flex-1 py-2 border border-border rounded-xl font-medium text-sm text-muted-foreground hover:bg-gray-50">MTN MoMo</button>
+                    </div>
                     <div>
                       <label className="text-sm font-light text-muted-foreground">Mobile Number</label>
                       <input
                         type="tel"
                         placeholder="+260 977 123 456"
                         defaultValue={profile?.momo_number}
-                        className="w-full mt-2 px-4 py-3 border border-border rounded-full font-light focus:outline-none focus:border-[#F97316]"
+                        className="w-full mt-2 px-4 py-3 border border-border rounded-xl font-light focus:outline-none focus:border-[#F97316]"
                       />
                     </div>
                     <p className="text-xs font-light text-muted-foreground">
-                      A prompt will be sent to your phone to approve the payment
+                      Enter your mobile number. A PIN prompt will automatically appear on your phone to approve the transaction.
                     </p>
                   </TabsContent>
 
                   <TabsContent value="card" className="space-y-4">
-                    <p className="text-sm font-light text-muted-foreground">
-                      Card payments coming soon
-                    </p>
+                    <div>
+                      <label className="text-sm font-light text-muted-foreground">Cardholder Name</label>
+                      <input
+                        type="text"
+                        placeholder="John Doe"
+                        className="w-full mt-2 px-4 py-3 border border-border rounded-xl font-light focus:outline-none focus:border-[#F97316]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-light text-muted-foreground">Card Number</label>
+                      <input
+                        type="text"
+                        placeholder="0000 0000 0000 0000"
+                        className="w-full mt-2 px-4 py-3 border border-border rounded-xl font-light focus:outline-none focus:border-[#F97316] font-mono tracking-widest"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-light text-muted-foreground">Expiry Date</label>
+                        <input
+                          type="text"
+                          placeholder="MM/YY"
+                          className="w-full mt-2 px-4 py-3 border border-border rounded-xl font-light focus:outline-none focus:border-[#F97316]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-light text-muted-foreground">CVC</label>
+                        <input
+                          type="text"
+                          placeholder="123"
+                          className="w-full mt-2 px-4 py-3 border border-border rounded-xl font-light focus:outline-none focus:border-[#F97316]"
+                        />
+                      </div>
+                    </div>
                   </TabsContent>
                 </Tabs>
 

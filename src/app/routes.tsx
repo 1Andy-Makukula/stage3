@@ -21,8 +21,13 @@ import { MerchantAgreement } from './pages/MerchantAgreement';
 import { Notifications } from './pages/Notifications';
 import { AuthPage } from './pages/AuthPage';
 import { NotFound } from './pages/NotFound';
+import { ClaimPage } from './pages/ClaimPage';
 
 export const router = createBrowserRouter([
+  {
+    path: '/claim/:id',
+    Component: ClaimPage,
+  },
   {
     path: '/',
     Component: Root,

@@ -1,25 +1,34 @@
 // KithLy Merchant Dashboard - Unified interface
 
 import { useState } from 'react';
-import { Store, TrendingUp, Clock, Package, Megaphone, Settings, Plus, QrCode } from 'lucide-react';
+import { Store, TrendingUp, Clock, Package, Megaphone, Settings, Plus, QrCode, BarChart } from 'lucide-react';
 import { HandshakeTerminal } from '../components/shared/HandshakeTerminal';
-import { mockTransactions } from '../data/mock-data';
+import { mockTransactions, mockProducts } from '../data/mock-data';
 import { formatZMW, formatRelativeTime } from '../utils/formatters';
 import { Card } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Badge } from '../components/ui/badge';
+import { ProductModal } from '../components/shared/ProductModal';
+import { Product } from '../types';
+import { toast } from 'sonner';
 
 export function MerchantDashboard() {
   const [recentRedemptions, setRecentRedemptions] = useState(
     mockTransactions.filter(t => t.status === 'completed')
   );
 
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
   const handleVerifyCode = async (code: string): Promise<boolean> => {
     // Mock verification
     await new Promise(resolve => setTimeout(resolve, 1500));
     const success = Math.random() > 0.2;
     if (success) {
+      toast.success('Gift successfully verified and claimed!');
       setRecentRedemptions(prev => [mockTransactions[0], ...prev]);
+    } else {
+      toast.error('Invalid or expired code.');
     }
     return success;
   };
@@ -113,7 +122,10 @@ export function MerchantDashboard() {
               <h2 className="text-xl font-light text-black">Inventory Management</h2>
               <p className="text-sm font-light text-muted-foreground">Manage your product listings</p>
             </div>
-            <button className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl font-light hover:bg-slate-800 transition-colors">
+            <button 
+              onClick={() => { setSelectedProduct(null); setIsProductModalOpen(true); }}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl font-light hover:bg-slate-800 transition-colors"
+            >
               <Plus className="w-4 h-4" /> Add Item
             </button>
           </div>
@@ -130,17 +142,32 @@ export function MerchantDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  <tr className="hover:bg-gray-50/50">
-                    <td className="px-6 py-4 flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg"></div>
-                      Zambezi Gift Basket
-                    </td>
-                    <td className="px-6 py-4">{formatZMW(450)}</td>
-                    <td className="px-6 py-4"><Badge className="bg-green-100 text-green-700">Active</Badge></td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="text-muted-foreground hover:text-black">Edit</button>
-                    </td>
-                  </tr>
+                  {mockProducts.slice(0, 5).map((product) => (
+                    <tr key={product.id} className="hover:bg-gray-50/50">
+                      <td className="px-6 py-4 flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                          {product.images?.[0] ? (
+                            <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <Package className="w-full h-full p-2 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-black">{product.title}</span>
+                          <span className="text-xs text-muted-foreground truncate w-32 md:w-48">{product.description}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">{formatZMW(product.price_zmw)}</td>
+                      <td className="px-6 py-4">
+                        <Badge className={`${product.stock_count > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"} border-none font-light`}>
+                          {product.stock_count > 0 ? `In Stock (${product.stock_count})` : 'Out of Stock'}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button onClick={() => { setSelectedProduct(product as Product); setIsProductModalOpen(true); }} className="text-muted-foreground hover:text-black transition-colors">Edit</button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -149,26 +176,90 @@ export function MerchantDashboard() {
 
         {/* ADS & PROMOS */}
         <TabsContent value="promos" className="mt-6">
-          <Card className="p-8 border-none shadow-sm text-center">
-            <Megaphone className="w-12 h-12 mx-auto mb-4 text-[#F97316]" strokeWidth={1.5} />
-            <h2 className="text-xl font-light text-black mb-2">Promote Your Shop</h2>
-            <p className="text-sm font-light text-muted-foreground max-w-md mx-auto mb-6">
-              Boost your visibility in the "Discover More" feed with dynamic ads.
-            </p>
-            <button className="px-6 py-2 bg-gradient-to-r from-[#F97316] to-[#FB923C] text-white rounded-full font-light">
-              Create Ad Campaign
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+            <div>
+              <h2 className="text-xl font-light text-black">Active Campaigns</h2>
+              <p className="text-sm font-light text-muted-foreground">Manage your promoted listings and shop ads</p>
+            </div>
+            <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#F97316] to-[#FB923C] text-white rounded-xl font-light hover:opacity-90 transition-opacity">
+              <Plus className="w-4 h-4" /> Create Ad Campaign
             </button>
-          </Card>
+          </div>
+          
+          <div className="grid lg:grid-cols-2 gap-6">
+            <Card className="p-6 border-none shadow-sm flex flex-col justify-between min-h-[200px]">
+              <div>
+                <div className="flex justify-between items-start mb-4">
+                  <Badge className="bg-green-100 text-green-700 border-none font-light">Active</Badge>
+                  <span className="text-xs text-muted-foreground font-light">Ends in 3 days</span>
+                </div>
+                <h3 className="font-medium text-black text-lg">Summer Sale Spotlight</h3>
+                <p className="text-sm font-light text-muted-foreground mt-1">Featured placement in "Discover More" feed</p>
+              </div>
+              <div className="mt-6 flex justify-between items-end">
+                <div>
+                  <span className="text-2xl font-light text-black">1.2k</span>
+                  <p className="text-xs text-muted-foreground font-light">Impressions</p>
+                </div>
+                <div>
+                  <span className="text-2xl font-light text-black">84</span>
+                  <p className="text-xs text-muted-foreground font-light">Clicks</p>
+                </div>
+              </div>
+            </Card>
+            
+            <Card className="p-6 border-dashed border-2 bg-transparent shadow-none flex flex-col items-center justify-center text-center cursor-pointer hover:border-[#F97316] transition-colors min-h-[200px]">
+              <Megaphone className="w-8 h-8 mb-3 text-muted-foreground" strokeWidth={1.5} />
+              <h3 className="font-light text-black">Boost your next product</h3>
+              <p className="text-sm text-muted-foreground font-light max-w-xs mt-1">Get more eyes on your shop by running targeted promotions.</p>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* ANALYTICS */}
         <TabsContent value="analytics" className="mt-6">
-           <Card className="p-8 border-none shadow-sm flex items-center justify-center min-h-[300px]">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-light text-black">Sales Analytics</h2>
+              <p className="text-sm font-light text-muted-foreground">Monitor your shop's performance</p>
+            </div>
+            <select className="px-4 py-2 bg-white border border-border rounded-xl font-light text-sm outline-none">
+              <option>Last 7 Days</option>
+              <option>Last 30 Days</option>
+              <option>This Year</option>
+            </select>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 mb-6">
+            <Card className="p-6 border-none shadow-sm">
+              <h3 className="text-sm font-light text-muted-foreground mb-1">Total Revenue</h3>
+              <p className="text-2xl font-light text-black">{formatZMW(12500)}</p>
+              <div className="mt-4 flex items-center text-xs text-green-600 font-light">
+                <TrendingUp className="w-3 h-3 mr-1" /> +14.5% from last period
+              </div>
+            </Card>
+            <Card className="p-6 border-none shadow-sm">
+              <h3 className="text-sm font-light text-muted-foreground mb-1">Items Sold</h3>
+              <p className="text-2xl font-light text-black">48</p>
+              <div className="mt-4 flex items-center text-xs text-green-600 font-light">
+                <TrendingUp className="w-3 h-3 mr-1" /> +5.2% from last period
+              </div>
+            </Card>
+            <Card className="p-6 border-none shadow-sm">
+              <h3 className="text-sm font-light text-muted-foreground mb-1">Store Views</h3>
+              <p className="text-2xl font-light text-black">3,240</p>
+              <div className="mt-4 flex items-center text-xs text-green-600 font-light">
+                <TrendingUp className="w-3 h-3 mr-1" /> +22.8% from last period
+              </div>
+            </Card>
+          </div>
+
+          <Card className="p-8 border-none shadow-sm flex items-center justify-center min-h-[300px]">
             <div className="text-center">
               <BarChart className="w-12 h-12 mx-auto mb-4 text-muted-foreground" strokeWidth={1.5} />
-              <h2 className="text-xl font-light text-black mb-2">Sales Analytics</h2>
-              <p className="text-sm font-light text-muted-foreground">
-                Detailed breakdowns of your historical sales data.
+              <h3 className="text-lg font-light text-black mb-2">Revenue Overview Chart</h3>
+              <p className="text-sm font-light text-muted-foreground max-w-sm mx-auto">
+                Interactive charts will be available in the next release to give you detailed visual breakdowns of your historical sales data.
               </p>
             </div>
           </Card>
@@ -187,7 +278,7 @@ export function MerchantDashboard() {
                 <label className="text-xs font-light text-muted-foreground">Location</label>
                 <input type="text" defaultValue="Lusaka, Zambia" className="w-full px-4 py-2 mt-1 border border-border rounded-lg bg-gray-50 focus:bg-white focus:outline-none" />
               </div>
-              <button className="px-6 py-2 bg-slate-900 text-white rounded-lg font-light text-sm">Save Changes</button>
+              <button onClick={() => toast.success('Shop profile updated successfully')} className="px-6 py-2 bg-slate-900 text-white rounded-lg font-light text-sm">Save Changes</button>
             </div>
             
             <hr className="my-8 border-border" />
@@ -207,6 +298,12 @@ export function MerchantDashboard() {
         </TabsContent>
 
       </Tabs>
+
+      <ProductModal 
+        isOpen={isProductModalOpen} 
+        onClose={() => setIsProductModalOpen(false)} 
+        product={selectedProduct} 
+      />
     </div>
   );
 }

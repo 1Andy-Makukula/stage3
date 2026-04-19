@@ -9,9 +9,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from '../components/ui/badge';
 import { mockUsers, mockProfiles, mockShops, mockProducts } from '../data/mock-data';
 import { formatZMW } from '../utils/formatters';
+import { UserDetailModal } from '../components/admin/UserDetailModal';
+import { MerchantDetailModal } from '../components/admin/MerchantDetailModal';
+import { User, Shop } from '../types';
 
 export function AdminDashboard() {
   const [selectedTab, setSelectedTab] = useState('overview');
+
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  
+  const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
+  const [isMerchantModalOpen, setIsMerchantModalOpen] = useState(false);
 
   // Mock stats
   const stats = {
@@ -148,7 +157,7 @@ export function AdminDashboard() {
                       const profile = mockProfiles.find(p => p.user_id === user.id);
                       return (
                         <TableRow key={user.id}>
-                          <TableCell className="font-light">{profile?.full_name || 'N/A'}</TableCell>
+                          <TableCell className="font-light">{user.full_name || 'N/A'}</TableCell>
                           <TableCell className="font-light">{user.email}</TableCell>
                           <TableCell>
                             <Badge className="font-light">{user.role}</Badge>
@@ -161,7 +170,10 @@ export function AdminDashboard() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <button className="text-sm font-light text-[#F97316] hover:underline">
+                            <button 
+                              onClick={() => { setSelectedUser(user as User); setIsUserModalOpen(true); }}
+                              className="text-sm font-light text-[#F97316] hover:underline"
+                            >
                               View
                             </button>
                           </TableCell>
@@ -197,16 +209,19 @@ export function AdminDashboard() {
                       const productCount = mockProducts.filter(p => p.shop_id === shop.id).length;
                       return (
                         <TableRow key={shop.id}>
-                          <TableCell className="font-light">{shop.name}</TableCell>
+                          <TableCell className="font-light">{shop.business_name}</TableCell>
                           <TableCell className="font-light">{shop.district?.name}</TableCell>
                           <TableCell className="font-light">{productCount}</TableCell>
                           <TableCell>
-                            <Badge variant={shop.is_verified ? 'default' : 'secondary'} className="font-light">
-                              {shop.is_verified ? 'Verified' : 'Pending'}
+                            <Badge variant={shop.status === 'active' ? 'default' : 'secondary'} className="font-light">
+                              {shop.status === 'active' ? 'Verified' : 'Pending'}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <button className="text-sm font-light text-[#F97316] hover:underline">
+                            <button 
+                              onClick={() => { setSelectedShop(shop as Shop); setIsMerchantModalOpen(true); }}
+                              className="text-sm font-light text-[#F97316] hover:underline"
+                            >
                               Manage
                             </button>
                           </TableCell>
@@ -258,6 +273,19 @@ export function AdminDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <UserDetailModal 
+        isOpen={isUserModalOpen} 
+        onClose={() => setIsUserModalOpen(false)} 
+        user={selectedUser} 
+        profile={selectedUser ? mockProfiles.find(p => p.user_id === selectedUser.id) || null : null} 
+      />
+      
+      <MerchantDetailModal 
+        isOpen={isMerchantModalOpen} 
+        onClose={() => setIsMerchantModalOpen(false)} 
+        shop={selectedShop} 
+      />
     </div>
   );
 }

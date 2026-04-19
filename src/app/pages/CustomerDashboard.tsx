@@ -11,9 +11,20 @@ import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import type { Transaction } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { Card } from '../components/ui/card';
+import { toast } from 'sonner';
 
 export function CustomerDashboard() {
   const { user } = useAuth();
+  
+  const [profileForm, setProfileForm] = useState({
+    fullName: user?.full_name || '',
+    email: user?.email || '',
+    phone: user?.phone || ''
+  });
+
+  const handleProfileSave = () => {
+    toast.success('Profile updated successfully');
+  };
   const sentActiveGifts = mockTransactions.filter(t => t.status === 'in_escrow');
   const sentCompletedGifts = mockTransactions.filter(t => t.status === 'completed');
   // For UI testing, pretend completed ones are received gifts
@@ -161,7 +172,7 @@ export function CustomerDashboard() {
                 </button>
               </div>
               <h2 className="text-xl font-light text-black">{user?.full_name || 'Guest User'}</h2>
-              <p className="text-sm font-light text-muted-foreground mb-4">{user?.phone_number || '+260 970 000 000'}</p>
+              <p className="text-sm font-light text-muted-foreground mb-4">{user?.phone || '+260 970 000 000'}</p>
               
               <div className="flex justify-center gap-2">
                 <Badge className="bg-gray-100 text-gray-700 font-light hover:bg-gray-200 cursor-pointer">
@@ -292,6 +303,40 @@ export function CustomerDashboard() {
                 
                 <Card className="p-6 border-none shadow-sm space-y-6">
                   <div>
+                    <h3 className="font-medium mb-3">Profile Information</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-xs font-light text-muted-foreground">Full Name</label>
+                        <input 
+                          type="text" 
+                          value={profileForm.fullName}
+                          onChange={e => setProfileForm({...profileForm, fullName: e.target.value})}
+                          className="w-full px-4 py-2 mt-1 border border-border rounded-lg bg-gray-50 focus:bg-white focus:outline-none" 
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-light text-muted-foreground">Email Address</label>
+                        <input 
+                          type="email" 
+                          value={profileForm.email}
+                          onChange={e => setProfileForm({...profileForm, email: e.target.value})}
+                          className="w-full px-4 py-2 mt-1 border border-border rounded-lg bg-gray-50 focus:bg-white focus:outline-none" 
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-light text-muted-foreground">Phone Number</label>
+                        <input 
+                          type="tel" 
+                          value={profileForm.phone}
+                          onChange={e => setProfileForm({...profileForm, phone: e.target.value})}
+                          className="w-full px-4 py-2 mt-1 border border-border rounded-lg bg-gray-50 focus:bg-white focus:outline-none" 
+                        />
+                      </div>
+                      <button onClick={handleProfileSave} className="px-6 py-2 bg-slate-900 text-white rounded-lg font-light text-sm">Save Profile</button>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-border">
                     <h3 className="font-medium mb-3">Security</h3>
                     <div className="space-y-4">
                       <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">

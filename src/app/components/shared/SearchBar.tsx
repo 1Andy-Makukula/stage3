@@ -26,6 +26,12 @@ export function SearchBar() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && query) {
+              navigate(`/?q=${encodeURIComponent(query)}`);
+              setIsFocused(false);
+            }
+          }}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setTimeout(() => setIsFocused(false), 200)}
           placeholder="Search gifts..."
@@ -61,7 +67,7 @@ export function SearchBar() {
                 <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" strokeWidth={1.5} />
                 <div className="flex-1 min-w-0">
                   <p className="font-light text-sm text-black truncate">{product.title}</p>
-                  <p className="text-xs font-light text-muted-foreground">{product.shop?.name}</p>
+                  <p className="text-xs font-light text-muted-foreground">{product.shop?.business_name}</p>
                 </div>
               </button>
             ))}
