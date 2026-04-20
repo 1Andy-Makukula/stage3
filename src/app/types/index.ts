@@ -38,6 +38,7 @@ export interface UserProfile {
    * Canonical `full_name` lives on {@link User}; keep in sync on write.
    */
   full_name?: string;
+  role: UserRole;
   has_shop: boolean;
   shop_id?: string;
 }

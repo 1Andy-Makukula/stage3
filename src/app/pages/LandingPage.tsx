@@ -9,11 +9,15 @@ import { ErrorBoundary } from '../components/shared/ErrorBoundary';
 import { EmptyState } from '../components/shared/EmptyState';
 import { heroSlides, districts } from '../data/mock-data';
 import { useProducts } from '../hooks/useProducts';
+import { useAds } from '../hooks/useAds';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Button } from '../components/ui/button';
+import { Megaphone } from 'lucide-react';
 
 export function LandingPage() {
   const navigate = useNavigate();
   const { products, loading: productsLoading } = useProducts();
+  const { globalAlert, featuredRibbon } = useAds();
   const [selectedDistrict, setSelectedDistrict] = useState<string>('');
   
   const [searchParams] = useSearchParams();
@@ -44,6 +48,15 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* KGCC: Global Platform Alert */}
+      {globalAlert && (
+        <div className="bg-[#F97316] text-white py-2 px-4 text-center flex items-center justify-center gap-3">
+          <Megaphone className="w-4 h-4 animate-pulse" />
+          <span className="text-sm font-light uppercase tracking-widest">{globalAlert.content_json.hero_title || 'System Announcement'}</span>
+          <span className="text-sm font-medium">{globalAlert.content_json.hero_subtitle}</span>
+        </div>
+      )}
+
       {!searchQuery && (
         <section className="container mx-auto px-4 md:px-6 py-6">
           <Tabs defaultValue="apologies" className="mb-5">
@@ -215,14 +228,25 @@ export function LandingPage() {
                 
                 {!searchQuery && (index + 1) % 6 === 0 && (
                   <div className="col-span-2 md:col-span-3 lg:col-span-4 my-6">
-                    <div className="bg-gradient-to-r from-[#F97316] to-[#FB923C] rounded-[1rem] p-8 text-white text-center">
-                      <Sparkles className="w-12 h-12 mx-auto mb-4" strokeWidth={1.5} />
-                      <h3 className="text-2xl font-light mb-2">
-                        Shop of the Week
+                    <div 
+                      className="rounded-[2.5rem] p-12 text-white text-center relative overflow-hidden group transition-all hover:shadow-2xl"
+                      style={{ backgroundColor: featuredRibbon?.content_json.accent_color || '#F97316' }}
+                    >
+                      <Sparkles className="w-12 h-12 mx-auto mb-6 group-hover:scale-110 transition-transform" strokeWidth={1.5} />
+                      <h3 className="text-3xl font-light mb-3 tracking-tight">
+                        {featuredRibbon?.content_json.hero_title || 'Shop of the Week'}
                       </h3>
-                      <p className="font-light text-white/90">
-                        Exclusive deals from verified merchants
+                      <p className="font-light text-white/90 text-lg mb-8">
+                        {featuredRibbon?.content_json.hero_subtitle || 'Exclusive deals from verified merchants'}
                       </p>
+                      {featuredRibbon?.content_json.cta_link && (
+                        <Button 
+                          onClick={() => navigate(featuredRibbon.content_json.cta_link!)}
+                          className="rounded-full bg-white text-black hover:bg-zinc-100 px-10 h-12 font-medium"
+                        >
+                          {featuredRibbon.content_json.cta_text || 'Explore Shop'}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )}

@@ -1,7 +1,5 @@
-// KithLy Header - Global Navigation
-
 import { useEffect, useState } from 'react';
-import { ShoppingCart, User, Menu, Gift, Bell, QrCode, Globe, LayoutDashboard, Store } from 'lucide-react';
+import { ShoppingCart, Menu, Gift, Bell, QrCode, Globe, LayoutDashboard, Store, LogOut, User, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../../hooks/useAuth';
@@ -15,7 +13,10 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
 } from '../ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Button } from '../ui/button';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -31,17 +32,21 @@ export function Header({
   onLogoClick,
 }: HeaderProps) {
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, profile, signOut } = useAuth();
   const { getTotalItems } = useCart();
   const cartItemCount = getTotalItems();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Logic Engine: Identity Recognition
+  const isGoogleUser = user?.app_metadata?.provider === 'google';
 
   useEffect(() => {
-    const audience = user?.role === 'merchant' ? 'merchant' : 'buyer';
+    const audience = profile?.role === 'merchant' ? 'merchant' : 'buyer';
     const refresh = () => setUnreadCount(getUnreadCount(audience));
     refresh();
     return subscribeNotifications(refresh);
-  }, [user?.role]);
+  }, [profile?.role]);
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-sm border-b border-border">
@@ -137,41 +142,66 @@ export function Header({
               )}
             </motion.button>
 
-            {/* Profile */}
-            {isAuthenticated ? (
+            {/* Profile Dropdown (Identity Recognition) */}
+            {isAuthenticated && profile ? (
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F97316] to-[#FB923C] flex items-center justify-center">
-                      <span className="text-white text-sm font-light">
-                        {user?.full_name?.charAt(0) || 'U'}
-                      </span>
-                    </div>
-                    <span className="hidden md:inline text-sm font-light">
-                      {user?.full_name?.split(' ')[0]}
-                    </span>
-                  </motion.button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={() => navigate('/dashboard')}>
-                    <LayoutDashboard className="w-4 h-4" /> My Dashboard
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/notifications')}>
-                    <Bell className="w-4 h-4" /> Notifications
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    Persona Switch
+                <DropdownMenuTrigger className="flex items-center gap-2 outline-none hover:bg-gray-50 p-1 rounded-full transition-colors">
+                  <Avatar className="w-8 h-8">
+                     <AvatarImage src={profile.avatar_url} />
+                     <AvatarFallback className="bg-gradient-to-br from-[#F97316] to-[#FB923C] text-white">
+                        <User className="w-4 h-4" />
+                     </AvatarFallback>
+                  </Avatar>
+                  <div className="text-left hidden lg:block pr-2">
+                    <p className="text-sm font-medium text-black truncate max-w-[120px]">{profile.full_name}</p>
+                    <p className="text-[10px] text-muted-foreground capitalize font-light">{profile.role}</p>
                   </div>
-                  <DropdownMenuItem onClick={() => navigate('/merchant/dashboard')}>
-                    <Store className="w-4 h-4" /> Switch to Merchant Dashboard
+                </DropdownMenuTrigger>
+                
+                <DropdownMenuContent align="end" className="w-64 rounded-2xl p-2">
+                  <DropdownMenuLabel className="font-light text-muted-foreground px-3 py-2">My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  
+                  <DropdownMenuItem onClick={() => navigate('/dashboard')} className="rounded-lg">
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    <span>My Dashboard</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/')}>
-                    <User className="w-4 h-4" /> Switch to Customer View
+
+                  {/* Admin Dashboard: Global Console Entry Point */}
+                  {profile.role === 'admin' && (
+                    <DropdownMenuItem onClick={() => navigate('/admin')} className="rounded-lg text-blue-600 focus:text-blue-700">
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      <span className="font-medium tracking-tight uppercase text-xs">Global Console</span>
+                    </DropdownMenuItem>
+                  )}
+
+                  <DropdownMenuSeparator />
+
+                  {/* Password Recognition Logic */}
+                  {!isGoogleUser ? (
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="rounded-lg focus:bg-transparent">
+                      <div className="flex items-center justify-between w-full">
+                        <span className="text-[10px] text-muted-foreground tracking-widest uppercase">
+                          {showPassword ? '••••••••' : 'Secured PWD'}
+                        </span>
+                        <button 
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="p-1 hover:bg-gray-100 rounded"
+                        >
+                          {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem disabled className="text-xs text-muted-foreground italic px-3">
+                      Managed by Google
+                    </DropdownMenuItem>
+                  )}
+
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => signOut()} className="text-red-600 rounded-lg focus:bg-red-50 focus:text-red-700">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span className="font-medium">Logout</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -180,7 +210,7 @@ export function Header({
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={onProfileClick}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#F97316] to-[#FB923C] text-white rounded-full font-light"
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#F97316] to-[#FB923C] text-white rounded-full font-light text-sm"
               >
                 <User className="w-4 h-4" strokeWidth={1.5} />
                 <span className="hidden md:inline">Sign In</span>

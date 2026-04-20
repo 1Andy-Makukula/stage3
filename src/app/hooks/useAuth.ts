@@ -20,7 +20,7 @@ interface AuthState {
   initialize: () => Promise<void>;
   login: (email: string, password: string) => Promise<{ error: string | null }>;
   loginWithGoogle: () => Promise<void>;
-  logout: () => Promise<void>;
+  signOut: () => Promise<void>;
   fetchProfile: (userId: string) => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<{ error: string | null }>;
   checkProfileComplete: () => boolean;
@@ -43,11 +43,28 @@ export const useAuth = create<AuthState>()(
         }
         set({ loading: false });
 
-        // Listen for session changes (Login/Logout)
+        // The Heartbeat: Syncing Profile & Identity on every auth shift
         supabase.auth.onAuthStateChange(async (event, session) => {
           if (session) {
             set({ user: session.user, isAuthenticated: true });
-            await get().fetchProfile(session.user.id);
+            
+            // Logic Engine: Fetch authoritative profile directly from DB (bypass basic JWT)
+            const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('*, shops(id, name, status)')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (!error && profile) {
+              const shops = (profile as any).shops;
+              set({ 
+                profile: { 
+                  ...profile, 
+                  has_shop: Array.isArray(shops) ? shops.length > 0 : !!shops,
+                  shop_id: Array.isArray(shops) ? shops?.[0]?.id : shops?.id 
+                } as UserProfile 
+              });
+            }
           } else {
             set({ user: null, profile: null, isAuthenticated: false });
           }
@@ -112,9 +129,18 @@ export const useAuth = create<AuthState>()(
         }
       },
 
-      logout: async () => {
-        await supabase.auth.signOut();
-        set({ user: null, profile: null, isAuthenticated: false });
+      signOut: async () => {
+        set({ loading: true });
+        try {
+          await supabase.auth.signOut();
+          set({ user: null, profile: null, isAuthenticated: false });
+          // Clear engine state and force hard redirect
+          window.location.href = '/'; 
+        } catch (error) {
+          console.error('Logout error:', error);
+        } finally {
+          set({ loading: false });
+        }
       },
 
       updateProfile: async (updates: Partial<UserProfile>) => {
