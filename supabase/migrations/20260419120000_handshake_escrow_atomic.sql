@@ -44,3 +44,52 @@ end;
 $$;
 
 commit;
+
+
+
+-- 1. Identity & Profiles
+CREATE TABLE profiles (
+  id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+  full_name TEXT,
+  email TEXT UNIQUE,
+  role TEXT DEFAULT 'customer' CHECK (role IN ('customer', 'merchant', 'admin')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. Zambian Geography (10 Provinces / 110+ Districts)
+CREATE TABLE districts (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  province_name TEXT NOT NULL,
+  district_name TEXT NOT NULL UNIQUE
+);
+
+-- 3. Merchants & Shops
+CREATE TABLE shops (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  owner_id UUID REFERENCES profiles(id) NOT NULL,
+  name TEXT NOT NULL,
+  district_id UUID REFERENCES districts(id),
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'suspended')),
+  verified BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 4. Handshake Escrow Ledger
+CREATE TABLE transactions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  buyer_id UUID REFERENCES profiles(id),
+  shop_id UUID REFERENCES shops(id),
+  amount DECIMAL(12,2) NOT NULL,
+  claim_code TEXT UNIQUE NOT NULL,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'in_escrow', 'completed', 'disputed', 'cancelled')),
+  handshake_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Users can only see their own transactions
+CREATE POLICY "Users view own transactions" ON transactions
+  FOR SELECT USING (auth.uid() = buyer_id OR auth.uid() IN (SELECT owner_id FROM shops WHERE id = transactions.shop_id));

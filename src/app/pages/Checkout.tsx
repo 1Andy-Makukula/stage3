@@ -70,95 +70,39 @@ export function Checkout() {
     }, 180);
   };
 
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const handlePayment = async () => {
-    setStep('payment');
+    if (isProcessing) return;
+    setIsProcessing(true);
+
     const paymentKey = newIdempotencyKey();
-
-    const fulfillment: GiftFulfillmentDetails = {
-      recipient_name: recipientName.trim() || '—',
-      recipient_phone: recipientPhone.trim() || '—',
-      gift_message: giftMessage.trim() || undefined,
-      sender_name: isAnonymous ? undefined : senderName.trim() || undefined,
-      send_anonymously: isAnonymous,
-    };
-
-    const checkoutLines = items.map((item) => ({
-      product_id: item.product.id,
-      shop_id: item.product.shop_id,
-      quantity: item.quantity,
-      unit_price_zmw: item.product.price_zmw,
-      title: item.product.title,
-    }));
-
     try {
-      const { ok } = await postJson<{ idempotentReplay?: boolean }>(
+      // Andy Plan: Handshake between frontend request and Flutterwave redirect
+      const { ok, data } = await postJson<{ redirect_url?: string }>(
         '/api/payments/initiate',
         {
           amountZmw: total,
-          currency: 'ZMW',
-          reference: `checkout-${Date.now()}`,
           customerEmail: user?.email,
           buyerName: user?.full_name,
-          merchantPhone: items[0]?.product.shop?.contact_phone,
-          claimCode: paymentKey.slice(0, 8).toUpperCase(),
-          fulfillment,
-          lines: checkoutLines,
+          buyerId: user?.id,
+          reference: `checkout-${Date.now()}`,
         },
         { 'Idempotency-Key': paymentKey }
       );
-      if (!ok) {
-        throw new Error('payment_init_failed');
+
+      if (ok && data?.redirect_url) {
+        window.location.href = data.redirect_url;
+        return;
       }
-    } catch {
-      setStep('personalize');
-      toast.error('Payment could not start', {
-        description: 'Check your connection and try again.',
+      
+      throw new Error('Insufficient handshake data from payment engine');
+    } catch (err: any) {
+      toast.error('Payment Error', {
+        description: err.message || 'Check your connection and try again.',
       });
-      return;
+      setIsProcessing(false);
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    const codes = Array.from(itemsByShop.keys()).map(() => generateHandshake());
-
-    const orderPayload: CheckoutOrderPayload = {
-      id: `ord-${Date.now()}`,
-      buyer_id: user?.id ?? '',
-      lines: checkoutLines,
-      amount_zmw: total,
-      currency: 'ZMW',
-      fulfillment,
-      handshake_codes: codes,
-      payment_reference: `checkout-${Date.now()}`,
-      idempotency_key: paymentKey,
-      created_at: new Date().toISOString(),
-    };
-
-    try {
-      sessionStorage.setItem('kithly_last_checkout_order', JSON.stringify(orderPayload));
-    } catch {
-      /* quota / private mode */
-    }
-
-    launchCelebrationConfetti();
-    const firstItemTitle = items[0]?.product.title ?? 'gift';
-    const firstShopName = items[0]?.product.shop?.business_name ?? 'merchant';
-    pushNotification({
-      type: 'info',
-      title: 'New Escrow Locked',
-      message: `New Escrow Locked: ${firstItemTitle}. Buyer payment confirmed.`,
-      audience: 'merchant',
-    });
-    pushNotification({
-      type: 'success',
-      title: 'Gift Purchase Confirmed',
-      message: `You locked ${firstItemTitle} with ${firstShopName}. Claim codes are now active.`,
-      audience: 'buyer',
-    });
-    setHandshakeCodes(codes);
-    setStep('success');
-    clearCart();
-    toast.success('Gift purchase complete!');
   };
 
   if (!isAuthenticated) {
@@ -448,13 +392,14 @@ export function Checkout() {
                   </div>
                 </div>
 
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                 <motion.button
+                  whileHover={{ scale: isProcessing ? 1 : 1.02 }}
+                  whileTap={{ scale: isProcessing ? 1 : 0.98 }}
                   onClick={handlePayment}
-                  className="w-full mt-6 py-4 bg-gradient-to-r from-[#F97316] to-[#FB923C] text-white rounded-full font-light shadow-lg"
+                  disabled={isProcessing}
+                  className={`w-full mt-6 py-4 bg-gradient-to-r from-[#F97316] to-[#FB923C] text-white rounded-full font-light shadow-lg transition-opacity ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  Confirm Payment
+                  {isProcessing ? 'Processing Handshake...' : 'Confirm Payment'}
                 </motion.button>
               </div>
             </motion.div>

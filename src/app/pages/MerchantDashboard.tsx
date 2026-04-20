@@ -14,6 +14,7 @@ import type { Product, ProductCategory } from '../types';
 import { toast } from 'sonner';
 import { postJson } from '../lib/api';
 import { pushNotification } from '../lib/notifications';
+import { useHandshake } from '../hooks/useHandshake';
 
 const MERCHANT_SHOP_ID = 'shop-1';
 
@@ -71,6 +72,7 @@ export function MerchantDashboard() {
               'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80&auto=format&fit=crop',
             ],
         featured: data.featured ?? false,
+        is_available: true,
         created_at: new Date().toISOString(),
       };
       return [...prev, newProduct];
@@ -86,43 +88,28 @@ export function MerchantDashboard() {
     });
   };
 
+  const { verify } = useHandshake();
+
   const handleVerifyCode = async (code: string): Promise<boolean> => {
-    try {
-      const { ok, status, data } = await postJson<{ ok?: boolean; error?: string }>(
-        '/api/handshake/verify',
-        { code }
-      );
-      if (status === 429) {
-        toast.error('Too many attempts', {
-          description: data?.error ?? 'Try again in a minute.',
-        });
-        return false;
-      }
-      if (ok && data?.ok) {
-        toast.success('Gift successfully verified and claimed!');
-        setRecentRedemptions((prev) => [mockTransactions[0], ...prev]);
-        pushNotification({
-          type: 'success',
-          title: 'Gift Claimed',
-          message: `Your gift was just claimed in Garden!`,
-          audience: 'buyer',
-        });
-        pushNotification({
-          type: 'info',
-          title: 'Escrow Released',
-          message: `Claim completed for ${mockTransactions[0].product?.title ?? 'gift'}.`,
-          audience: 'merchant',
-        });
-        return true;
-      }
-      toast.error(data?.error ?? 'Invalid or expired code.');
-      return false;
-    } catch {
-      toast.error('Verification failed', {
-        description: 'Check your connection and try again.',
+    const ok = await verify(code);
+    if (ok) {
+      // In a real Supabase setup, this would be updated via subscription or refetch
+      setRecentRedemptions((prev) => [mockTransactions[0], ...prev]);
+      pushNotification({
+        type: 'success',
+        title: 'Gift Claimed',
+        message: `Your gift was just claimed in Garden!`,
+        audience: 'buyer',
       });
-      return false;
+      pushNotification({
+        type: 'info',
+        title: 'Escrow Released',
+        message: `Claim completed for ${mockTransactions[0].product?.title ?? 'gift'}.`,
+        audience: 'merchant',
+      });
+      return true;
     }
+    return false;
   };
 
   const todayEarnings = recentRedemptions.reduce((sum, t) => sum + t.amount_zmw, 0);

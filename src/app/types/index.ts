@@ -38,6 +38,8 @@ export interface UserProfile {
    * Canonical `full_name` lives on {@link User}; keep in sync on write.
    */
   full_name?: string;
+  has_shop: boolean;
+  shop_id?: string;
 }
 
 export interface Shop {
@@ -80,6 +82,7 @@ export interface Product {
   category: ProductCategory;
   images: string[];
   featured: boolean;
+  is_available: boolean;
   created_at: string;
 }
 

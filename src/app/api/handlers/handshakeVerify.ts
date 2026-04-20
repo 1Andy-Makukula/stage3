@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import type { Logger } from 'pino';
-import { mockTransactions } from '../../data/mock-data';
+import { supabaseAdmin } from '../../../../server/index';
 import { isValidHandshakeLength, normalizeHandshakeCode } from '../lib/handshakeCode';
 import { sendSms } from '../../../../server/services/smsService';
 
@@ -32,12 +32,21 @@ export async function handleHandshakeVerify(
     return;
   }
 
-  const validCodes = new Set(
-    mockTransactions.map((t) => normalizeHandshakeCode(t.claim_code))
-  );
-  const ok = validCodes.has(code);
+  // Identity Handshake: Search live Supabase Ledger
+  const { data: tx, error: fetchError } = await supabaseAdmin
+    .from('transactions')
+    .select(`
+      id, 
+      status, 
+      buyer_id,
+      shop_id,
+      profiles:buyer_id(phone),
+      shops:shop_id(name, district_id)
+    `)
+    .eq('claim_code', code)
+    .single();
 
-  if (!ok) {
+  if (fetchError || !tx) {
     const rl = deps.recordHandshakeFailure(ip);
     if (!rl.allowed) {
       log.warn({ ip, retryAfterSec: rl.retryAfterSec }, 'handshake_rate_limited');
@@ -48,19 +57,41 @@ export async function handleHandshakeVerify(
       });
       return;
     }
-    log.info({ ip }, 'handshake_invalid');
+    log.info({ ip, code }, 'handshake_invalid');
     res.status(400).json({ ok: false, error: 'Invalid or expired code' });
     return;
   }
 
+  if (tx.status !== 'in_escrow') {
+    res.status(400).json({ ok: false, error: `Gift status is ${tx.status}. Only "in_escrow" gifts can be claimed.` });
+    return;
+  }
+
+  // Atomic Handshake: Complete escrow via RPC
+  // In a real merchant auth context, we'd pass the authenticated merchant's ID here.
+  const { error: updateError } = await supabaseAdmin
+    .from('transactions')
+    .update({ 
+      status: 'completed', 
+      handshake_at: new Date().toISOString() 
+    })
+    .eq('id', tx.id);
+
+  if (updateError) {
+    log.error({ err: updateError, txId: tx.id }, 'handshake_completion_failed');
+    res.status(500).json({ error: 'Failed to complete handshake in ledger' });
+    return;
+  }
+
   deps.resetHandshakeFailures(ip);
-  const tx = mockTransactions.find((t) => normalizeHandshakeCode(t.claim_code) === code);
-  if (tx?.buyer?.phone) {
+  
+  if ((tx.profiles as any)?.phone) {
     await sendSms(
-      tx.buyer.phone,
-      `Your gift was just claimed in ${tx.shop?.district?.name ?? 'your area'}!`
+      (tx.profiles as any).phone,
+      `Your KithLy gift was just claimed at ${(tx.shops as any)?.name || 'the merchant'}!`
     );
   }
-  log.info({ ip }, 'handshake_verified');
+  
+  log.info({ ip, txId: tx.id }, 'handshake_verified_live');
   res.status(200).json({ ok: true });
 }

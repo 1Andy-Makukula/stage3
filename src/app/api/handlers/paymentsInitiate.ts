@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import type { Logger } from 'pino';
-import { sendMerchantEscrowSms, sendRecipientPurchaseSms } from '../../../../server/services/smsService';
-import { mockShops } from '../../data/mock-data';
+import { initiatePayment } from '../../../../server/services/paymentService';
+import { supabaseAdmin } from '../../../../server/index';
 
 /**
  * POST /api/payments/initiate
@@ -21,56 +21,60 @@ export async function handlePaymentsInitiate(
 
   const body = req.body as {
     amountZmw?: number;
-    currency?: string;
     customerEmail?: string;
-    reference?: string;
-    fulfillment?: { recipient_name?: string; recipient_phone?: string; send_anonymously?: boolean };
-    lines?: Array<{ title?: string }>;
     buyerName?: string;
-    merchantPhone?: string;
-    claimCode?: string;
+    buyerId?: string;
+    shopId?: string;
+    productId?: string;
+    recipientPhone?: string;
+    reference?: string;
   };
 
   try {
     const { replay, value } = await getOrExecute(idempotencyKey, async () => {
-      const reference = body.reference ?? `KL-${idempotencyKey.slice(0, 12)}`;
-      log.info(
-        {
-          idempotencyKey,
-          hasFulfillment: Boolean(body.fulfillment),
-          lineCount: Array.isArray(body.lines) ? body.lines.length : 0,
-        },
-        'payment_initiate'
+      log.info({ idempotencyKey, amount: body.amountZmw }, 'payment_initiate_v2');
+
+      // 1. Hand over to Flutterwave Logic Engine
+      const flutterwaveResponse = await initiatePayment(
+        body.amountZmw ?? 0,
+        body.customerEmail ?? '',
+        body.buyerName ?? 'KithLy Customer'
       );
 
-      const firstLineTitle = body.lines?.[0]?.title ?? 'KithLy gift';
-      const claimCode = body.claimCode ?? `KL-${idempotencyKey.slice(0, 6).toUpperCase()}`;
-      if (body.fulfillment?.recipient_phone) {
-        await sendRecipientPurchaseSms(
-          body.fulfillment.recipient_phone,
-          body.buyerName ?? 'Someone',
-          firstLineTitle,
-          claimCode
-        );
+      if (flutterwaveResponse.status !== 'success') {
+        throw new Error(`flutterwave_error: ${flutterwaveResponse.message}`);
       }
-      const merchantPhone = body.merchantPhone ?? mockShops[0]?.contact_phone;
-      if (merchantPhone) {
-        await sendMerchantEscrowSms(merchantPhone, firstLineTitle);
+
+      // 2. Identity Handshake: Link the payment to a pending KithLy transaction
+      const claimCode = `KL-${idempotencyKey.slice(0, 6).toUpperCase()}`;
+      const { error } = await supabaseAdmin
+        .from('transactions')
+        .insert({
+          buyer_id: body.buyerId,
+          shop_id: body.shopId,
+          amount: body.amountZmw,
+          claim_code: claimCode,
+          status: 'pending',
+          tx_ref: flutterwaveResponse.data.tx_ref,
+          recipient_phone: body.recipientPhone,
+          product_id: body.productId // Assuming product_id link
+        });
+
+      if (error) {
+        log.error({ error }, 'pending_transaction_creation_failed');
+        throw new Error('Could not initialize transaction ledger');
       }
 
       return {
-        status: 'initiated' as const,
-        reference,
-        amountZmw: body.amountZmw ?? 0,
-        currency: body.currency ?? 'ZMW',
-        provider: 'flutterwave' as const,
+        status: 'initiated',
+        redirect_url: flutterwaveResponse.data.link,
+        tx_ref: flutterwaveResponse.data.tx_ref
       };
     });
 
-    log.info({ idempotencyKey, replay }, 'payment_initiate_result');
     res.status(replay ? 200 : 201).json({ ...value, idempotentReplay: replay });
-  } catch (e) {
-    log.error({ err: e }, 'payment_initiate_failed');
-    res.status(500).json({ error: 'Payment initiation failed' });
+  } catch (e: any) {
+    log.error({ err: e.message }, 'payment_initiate_failed');
+    res.status(500).json({ error: 'Payment initiation failed', details: e.message });
   }
 }

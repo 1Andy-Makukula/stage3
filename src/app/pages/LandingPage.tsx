@@ -7,27 +7,25 @@ import { ProductCard } from '../components/shared/ProductCard';
 import { ProductCardSkeleton } from '../components/shared/ProductCardSkeleton';
 import { ErrorBoundary } from '../components/shared/ErrorBoundary';
 import { EmptyState } from '../components/shared/EmptyState';
-import { heroSlides, mockProducts, districts } from '../data/mock-data';
+import { heroSlides, districts } from '../data/mock-data';
+import { useProducts } from '../hooks/useProducts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 
 export function LandingPage() {
   const navigate = useNavigate();
-  const [marketLoading, setMarketLoading] = useState(true);
+  const { products, loading: productsLoading } = useProducts();
   const [selectedDistrict, setSelectedDistrict] = useState<string>('');
   
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get('q');
 
-  useEffect(() => {
-    const t = window.setTimeout(() => setMarketLoading(false), 550);
-    return () => window.clearTimeout(t);
-  }, []);
+  const marketLoading = productsLoading;
 
-  const filteredProducts = mockProducts.filter(p => {
+  const filteredProducts = products.filter(p => {
     const matchesDistrict = selectedDistrict ? p.shop?.district_id === selectedDistrict : true;
     const matchesSearch = searchQuery 
       ? p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
         p.category.toLowerCase().includes(searchQuery.toLowerCase())
       : true;
     return matchesDistrict && matchesSearch;
@@ -145,9 +143,9 @@ export function LandingPage() {
           </section>
 
           <HorizontalProductRibbon
-            title="Popular in Garden"
+            title="Popular Products"
             subtitle="Trending near you"
-            products={mockProducts.filter(p => p.shop?.district?.name === 'Garden')}
+            products={filteredProducts.slice(0, 4)}
             loading={ribbonBusy}
           />
 
@@ -254,7 +252,7 @@ export function LandingPage() {
         )}
       </section>
 
-      {mockProducts.length === 0 && (
+      {products.length === 0 && (
         <div className="container mx-auto px-4 md:px-6">
           <EmptyState
             icon={MapPin}
